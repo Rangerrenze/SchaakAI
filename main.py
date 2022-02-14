@@ -23,6 +23,10 @@ class game:
         self.whiteToMove = True
         self.stockfishy = stockfish.Stockfish(
         path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=1, parameters={"Threads": 4, "Minimum Thinking Time": 30})
+        self.stockfishy2 = stockfish.Stockfish(
+            path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
+            parameters={"Threads": 4, "Minimum Thinking Time": 30})
+
     def startGame(self):
         self.board = board
         self.starting = False
@@ -32,8 +36,8 @@ class game:
 
     def getStockFishMove(self):
         fenn = self.getFen()
-        self.stockfishy.set_fen_position(fenn)
-        test = self.stockfishy.get_best_move()
+        self.stockfishy2.set_fen_position(fenn)
+        test = self.stockfishy2.get_best_move()
         return test
 
     def makeMove(self, move):
@@ -95,9 +99,6 @@ class game:
         else:
             return False
 
-    def sortSecond(value):
-        print("val", value)
-        return value[1]
 
     def findBestMove(self):
         self.startTime = time.time()
