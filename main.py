@@ -5,6 +5,7 @@ import random
 import chess
 import chess.svg
 import time
+from operator import itemgetter
 
 board = chess.Board()
 running = True
@@ -94,6 +95,9 @@ class game:
         else:
             return False
 
+    def sortSecond(value):
+        print("val", value)
+        return value[1]
 
     def findBestMove(self):
         self.startTime = time.time()
@@ -102,22 +106,31 @@ class game:
         ri = random.randint(0, len(moves) - 1)
         bestMove = moves[ri]
         bestScore = -math.inf
+        previousMoves = []
+        startMoves = []
         for depth in range(100):
-            move, score = self.Minimax(depth, depth, True, math.inf, -math.inf)
+            if depth == 1:
+                startMoves = self.getLegalMoves()
+            else:
+                startMoves = previousMoves
+
+            move, score, allMoves = self.Minimax(depth, depth, True, math.inf, -math.inf, startMoves)
             if move:
+                allMoves.sort(key=itemgetter(1),reverse=True)
+                previousMoves = allMoves
                 bestScore, bestMove = score, move
                 print(bestMove)
-        print("returning")
+            print(depth)
         return bestMove, bestScore
 
 
-    def Minimax(self, depth, OGDepth, maxPlayer, alpha, beta):
+    def Minimax(self, depth, OGDepth, maxPlayer, alpha, beta, startMoves):
         if time.time() - self.startTime > self.moveTime and depth == OGDepth:
-            return None, None
-        
+            return None, None, None
+            print("skipping")
+
         if depth == OGDepth:
             self.miniMaxOGgoing = self.whiteToMove
-        moves = self.getLegalMoves()
         self.minimxDraw = self.checkDraw()
         self.minimaxGameOver = self.CheckGameOver()
         if depth == 0:
@@ -125,7 +138,7 @@ class game:
             self.stockfishy.set_fen_position(fen)
             score = self.stockfishy.get_evaluation()
             score = score["value"]
-            return None, score
+            return None, score, None
         elif self.minimaxGameOver != None:
             score = 0
             if self.whiteToMove == self.miniMaxOGgoing:
@@ -135,15 +148,25 @@ class game:
             return None, score
         elif self.minimxDraw:
             score = 10
-            return None, score
+            return None, score, None
+        allmoves = []
+        if not depth == OGDepth or OGDepth == 1:
+            moves = self.getLegalMoves()
+            ri = random.randint(0, len(moves)-1)
+            bestMove = moves[ri]
+        else:
+            movestemp = startMoves
+            moves = []
+            for tempmove in movestemp:
+                moves.append(tempmove[0])
+            bestMove = moves[0]
 
-        ri = random.randint(0, len(moves)-1)
-        bestMove = moves[ri]
+
         if maxPlayer:
             maxEval = -math.inf
             for move in moves:
                 self.makeMove(move)
-                currentEval = self.Minimax(depth-1, OGDepth, False, alpha, beta)[1]
+                currentEval = self.Minimax(depth-1, OGDepth, False, alpha, beta, None)[1]
                 self.undoMove()
                 if currentEval > maxEval:
                     maxEval = currentEval
@@ -151,12 +174,15 @@ class game:
                 alpha = max(alpha, currentEval)
                 if alpha <= beta:
                     break
-            return bestMove, maxEval
+
+                if depth == OGDepth:
+                    allmoves.append((move, currentEval))
+            return bestMove, maxEval, allmoves
         if not maxPlayer:
             minEval = math.inf
             for move in moves:
                 self.makeMove(move)
-                currentEval = self.Minimax(depth-1, OGDepth, True, alpha, beta)[1]
+                currentEval = self.Minimax(depth-1, OGDepth, True, alpha, beta, None)[1]
                 self.undoMove()
                 if currentEval < minEval:
                     minEval = currentEval
@@ -164,10 +190,10 @@ class game:
                 beta =min(beta, currentEval)
                 if beta <= alpha:
                     break
-            return bestMove, minEval
+            return bestMove, minEval, allmoves
 
     def getMinimaxMove(self, depth):
-        move = self.Minimax(depth, depth, True, math.inf, -math.inf)
+        move = self.Minimax(depth, depth, True, math.inf, -math.inf, None)
         return move
 
 
