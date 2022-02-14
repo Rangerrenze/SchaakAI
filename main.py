@@ -4,6 +4,7 @@ import stockfish
 import random
 import chess
 import chess.svg
+import time
 
 board = chess.Board()
 running = True
@@ -20,7 +21,7 @@ class game:
         self.selfMove = None
         self.whiteToMove = True
         self.stockfishy = stockfish.Stockfish(
-        path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 2, "Minimum Thinking Time": 30})
+        path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=1, parameters={"Threads": 4, "Minimum Thinking Time": 30})
     def startGame(self):
         self.board = board
         self.starting = False
@@ -93,7 +94,27 @@ class game:
         else:
             return False
 
+
+    def findBestMove(self):
+        self.startTime = time.time()
+        self.moveTime = 10
+        moves = self.getLegalMoves()
+        ri = random.randint(0, len(moves) - 1)
+        bestMove = moves[ri]
+        bestScore = -math.inf
+        for depth in range(100):
+            move, score = self.Minimax(depth, depth, True, math.inf, -math.inf)
+            if move:
+                bestScore, bestMove = score, move
+                print(bestMove)
+        print("returning")
+        return bestMove, bestScore
+
+
     def Minimax(self, depth, OGDepth, maxPlayer, alpha, beta):
+        if time.time() - self.startTime > self.moveTime and depth == OGDepth:
+            return None, None
+        
         if depth == OGDepth:
             self.miniMaxOGgoing = self.whiteToMove
         moves = self.getLegalMoves()
@@ -166,13 +187,13 @@ def main():
             fen = x.getFen()
             fen = fen.split(" ")
             if fen[1] == 'w':
-                temp = x.getMinimaxMove(1)
+                temp = x.findBestMove()
                 print(temp[1], "white move eval")
                 temp = temp[0]
                 lastmove = temp
                 x.makeMove(temp)
             else:
-                temp = x.getMinimaxMove(4)
+                temp = x.findBestMove()
                 print(temp[1], "black move eval")
                 temp = temp[0]
                 lastmove = temp
