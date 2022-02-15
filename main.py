@@ -434,19 +434,6 @@ def getMover(r, c):
     colstoFiles = {v: k for k, v in filestoCols.items()}
     return colstoFiles[c] + rowstoRanks[r]
 
-# def getChessnotationOld():
-#     chessNotation = getrankfile(startRow, self.startCol) + self.getrankfile(self.endRow, self.endCol)
-#
-#     if self.pieceMoved[1] != "p":
-#         chessNotation = self.pieceMoved[1] + "-" + chessNotation
-#     print("Chess Notation Test", chessNotation)
-#     return chessNotation
-#     #Add advanced "true" chess notation
-#
-# def getrankfile(self, r, c):
-
-    #     return self.colstoFiles[c] + self.rowstoRanks[r]
-
 
 def getPromotionInput(move):
     print("Castlemove, input desired piece (lowercases(, options = q, b, r, n")
