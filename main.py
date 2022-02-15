@@ -16,7 +16,6 @@ DIMENSION = 8
 SQ_SIZE = HEIGHT // DIMENSION
 MAX_FPS = 15
 IMAGES = {}
-movecatalog = []
 
 class game:
     def __init__(self, ID):
@@ -29,6 +28,7 @@ class game:
         self.board = None
         self.stockFishmove = None
         self.selfMove = None
+        self.moveCatalog = []
         self.whiteToMove = True
         self.stockfishy = stockfish.Stockfish(
         path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
@@ -43,6 +43,9 @@ class game:
     def getFen(self):
         return self.board.fen()
 
+    def getBoard(self):
+        return self.board
+
     def getStockFishMove(self):
         fenn = self.getFen()
         self.stockfishy2.set_fen_position(fenn)
@@ -51,6 +54,10 @@ class game:
 
     def makeMove(self, move):
         self.board.push_san(move)
+        self.whiteToMove = not self.whiteToMove
+
+    def makeMoveUCI(self, move):
+        self.board.push(move)
         self.whiteToMove = not self.whiteToMove
 
     def undoMove(self):
@@ -93,6 +100,9 @@ class game:
         legalMoves = legalMoves[0].split(", ")
         return legalMoves
 
+    def getLegalMovesUCI(self):
+        return list(self.board.legal_moves)
+
     def CheckGameOver(self):
         return board.outcome()
 
@@ -108,6 +118,13 @@ class game:
         else:
             return False
 
+    def analyseBoard(self):
+        fen = self.getFen()
+        self.stockfishy2.set_fen_position(fen)
+        self.stockfishy.set_fen_position(fen)
+        val1 = self.stockfishy2.get_evaluation()
+        val2 = self.stockfishy.get_evaluation()
+        print("Stockfish depth 18 analysis: ", val1, "Stockfish depth 2 analysis", val2)
 
     def findBestMove(self):
         self.startTime = time.time()
@@ -116,6 +133,8 @@ class game:
         fen = fen.split(" ")
         if fen[1] == 'b':
             self.OGplayer = "b"
+        elif fen[1] == "w":
+            self.OGplayer = "w"
         moves = self.getLegalMoves()
         ri = random.randint(0, len(moves) - 1)
         bestMove = moves[ri]
@@ -155,13 +174,13 @@ class game:
             return None, score, None
         elif self.minimaxGameOver != None:
             score = 0
-            if self.whiteToMove == self.miniMaxOGgoing:
-                score = 1000000
-            elif self.whiteToMove != self.miniMaxOGgoing:
-                score = -100000
+            if (self.OGplayer == "w" and self.whiteToMove) or (self.OGplayer == "b" and not self.whiteToMove):
+                score = math.inf
+            if (self.OGplayer == "w" and not self.whiteToMove) or (self.OGplayer == "b" and self.whiteToMove):
+                score = -math.inf
             return None, score
         elif self.minimxDraw:
-            score = 10
+            score = 100000
             return None, score, None
         allmoves = []
         if not depth == OGDepth or OGDepth == 1:
@@ -243,21 +262,6 @@ def highlightSquares(screen, gs, validMoves, sqSelected):
                         screen.blit(s, (SQ_SIZE*move.endCol, SQ_SIZE*move.endRow))
 
 
-# def getChessnotationOld():
-#     chessNotation = getrankfile(startRow, self.startCol) + self.getrankfile(self.endRow, self.endCol)
-#
-#     if self.pieceMoved[1] != "p":
-#         chessNotation = self.pieceMoved[1] + "-" + chessNotation
-#     print("Chess Notation Test", chessNotation)
-#     return chessNotation
-#     #Add advanced "true" chess notation
-#
-# def getrankfile(self, r, c):
-#     rankstoRows = {"1": 7, "2": 6, "3": 5, "4": 4, "5": 3, "6": 2, "7": 1, "8": 0}
-#     rowstoRanks = {v: k for k, v in rankstoRows.items()}
-#     filestoCols = {"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7}
-#     colstoFiles = {v: k for k, v in filestoCols.items()}
-#     return self.colstoFiles[c] + self.rowstoRanks[r]
 
 
 def drawPieces(screen, board):
@@ -289,50 +293,171 @@ def createBoardArray(fen):
 
 
 def main():
+    MultipleGames = False #System for enabling multiple gamess at a time, IE training AI
     numGames = 1
-    games = [game(numGames)]
+    games = None
+    if MultipleGames:
+        games = []
+        for x in range(numGames):
+            games.append(game(x))
+    elif not MultipleGames:
+        games = game(numGames)
     running = True
     p.init()
     screen = p.display.set_mode((WIDHT, HEIGHT))
     clock = p.time.Clock()
     screen.fill(p.Color("Black"))
     loadImages()
-    tempoboard = board
+    tempoboard = chess.Board()
     tempoarray = createBoardArray(tempoboard.fen())
     drawGameState(screen, tempoarray)
     clock.tick(MAX_FPS)
     p.display.flip()
+    whiteAI = False
+    blackAI = False
+    sqselected = ()
+    playerclicks = []
+
 
     while running:
         lastmove = None
-        for x in games:
-            if x.starting == True:
-                x.startGame()
-            x.showBoard()
-            fen = x.getFen()
-            fen = fen.split(" ")
-            if fen[1] == 'w':
-                temp = x.findBestMove()
-                print(temp[1], "white move eval")
-                temp = temp[0]
-                lastmove = temp
-                x.makeMove(temp)
-                movecatalog.append(temp)
-            else:
-                temp = x.findBestMove()
-                print(temp[1], "black move eval")
-                temp = temp[0]
-                lastmove = temp
-                x.makeMove(temp)
-                movecatalog.append(temp)
-        fen = games[0].getFen()
+        if MultipleGames:
+            for x in games:
+                if x.starting == True:
+                    x.startGame()
+                x.showBoard()
+                fen = x.getFen()
+                fen = fen.split(" ")
+                if fen[1] == 'w' and whiteAI:
+                    temp = x.findBestMove()
+                    print(temp[1], "white move eval")
+                    temp = temp[0]
+                    lastmove = temp
+                    x.makeMove(temp)
+                    x.moveCatalog.append(temp)
+                elif fen[1] == 'b' and blackAI:
+                    temp = x.findBestMove()
+                    print(temp[1], "black move eval")
+                    temp = temp[0]
+                    lastmove = temp
+                    x.makeMove(temp)
+                    x.moveCatalog.append(temp)
+        if MultipleGames:
+            fen = games[0].getFen()
+        else:
+            games.startGame()
+            fen = games.getFen()
         arrayBoard = createBoardArray(fen)
         drawGameState(screen, arrayBoard)
         clock.tick(MAX_FPS)
         p.display.flip()
-        for e in p.event.get():
-            if e.type == p.QUIT:
-                running = False
+        if MultipleGames:
+            for e in p.event.get():
+                if e.type == p.QUIT:
+                    running = False
+        else:
+            for e in p.event.get():
+                if e.type == p.QUIT:
+                    running = False
+                elif e.type ==p.MOUSEBUTTONDOWN:
+                    location = p.mouse.get_pos()
+                    col = location[0] // SQ_SIZE
+                    row = location[1] // SQ_SIZE
+                    if sqselected == (row, col):
+                        sqselected = ()
+                        playerclicks = []
+                    else:
+                        sqselected = (row, col)
+                        playerclicks.append(sqselected)
+                    print(len(playerclicks))
+                    if len(playerclicks) == 2:
+                        move = str(getMover(playerclicks[0][0], playerclicks[0][1]) + getMover(playerclicks[1][0], playerclicks[1][1]))
+                        if games.whiteToMove and playerclicks[0][0] == 1 and playerclicks[1][0] == 0:
+                            board = createBoardArray(games.getFen())
+                            if board[playerclicks[0][0]][playerclicks[0][1]] == "wP":
+                                move = getPromotionInput(move)
+
+                        elif not games.whiteToMove and playerclicks[0][0] == 6 and playerclicks[1][0] == 7:
+                            board = createBoardArray(games.getFen())
+                            if board[playerclicks[0][0]][playerclicks[0][1]] == "bP":
+                                move = getPromotionInput(move)
+
+                        validmoves = games.getLegalMovesUCI()
+                        temp = True
+                        for x in validmoves:
+                            # print(x)
+                            if str(x) == move:
+                                print(move)
+                                games.makeMoveUCI(x)
+                                games.moveCatalog.append(x)
+                                playerclicks = []
+                                sqselected = ()
+                                fen = games.getFen()
+                                arrayBoard = createBoardArray(fen)
+                                drawGameState(screen, arrayBoard)
+                                p.display.flip()
+                                games.analyseBoard()
+                                print(games.whiteToMove)
+                                temp = False
+                        if temp:
+                            playerclicks = []
+                            sqselected = []
+
+
+
+
+
+
+
+
+            if whiteAI and games.whiteToMove:
+                mover = games.findBestMove()
+                if type(mover) == list or bytearray:
+                    print(mover[1], "White move eval")
+                    mover = mover[0]
+                games.makeMove(mover)
+                games.moveCatalog.append(mover)
+            elif blackAI and not games.whiteToMove:
+                mover = games.findBestMove()
+                if type(mover) == list or bytearray:
+                    print(mover[1], "Black move eval")
+                    mover = mover[0]
+                games.makeMove(mover)
+                games.moveCatalog.append(mover)
+
+
+
+def getMover(r, c):
+    rankstoRows = {"1": 7, "2": 6, "3": 5, "4": 4, "5": 3, "6": 2, "7": 1, "8": 0}
+    rowstoRanks = {v: k for k, v in rankstoRows.items()}
+    filestoCols = {"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7}
+    colstoFiles = {v: k for k, v in filestoCols.items()}
+    return colstoFiles[c] + rowstoRanks[r]
+
+# def getChessnotationOld():
+#     chessNotation = getrankfile(startRow, self.startCol) + self.getrankfile(self.endRow, self.endCol)
+#
+#     if self.pieceMoved[1] != "p":
+#         chessNotation = self.pieceMoved[1] + "-" + chessNotation
+#     print("Chess Notation Test", chessNotation)
+#     return chessNotation
+#     #Add advanced "true" chess notation
+#
+# def getrankfile(self, r, c):
+
+    #     return self.colstoFiles[c] + self.rowstoRanks[r]
+
+
+def getPromotionInput(move):
+    print("Castlemove, input desired piece (lowercases(, options = q, b, r, n")
+    desired = str(input())
+    if desired == "q" or "b" or "r" or "n":
+        move = str(move + desired)
+        print("Promotion: ", move)
+    else:
+        print("wrong, try again")
+        move = getPromotionInput(move)
+    return move
 
 
 if __name__ == "__main__":
