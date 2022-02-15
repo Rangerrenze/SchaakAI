@@ -6,13 +6,22 @@ import chess
 import chess.svg
 import time
 from operator import itemgetter
+import pygame as p
+import numpy
 
 board = chess.Board()
-running = True
+screenSize = 512
+WIDHT = HEIGHT = screenSize
+DIMENSION = 8
+SQ_SIZE = HEIGHT // DIMENSION
+MAX_FPS = 15
+IMAGES = {}
+movecatalog = []
 
 class game:
     def __init__(self, ID):
         self.ID = ID
+        self.OGplayer = None
         self.starting = True
         self.miniMaxOGgoing = True
         self.minimaxGameOver = False
@@ -22,9 +31,9 @@ class game:
         self.selfMove = None
         self.whiteToMove = True
         self.stockfishy = stockfish.Stockfish(
-        path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=1, parameters={"Threads": 4, "Minimum Thinking Time": 30})
+        path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.stockfishy2 = stockfish.Stockfish(
-            path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
+            path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
             parameters={"Threads": 4, "Minimum Thinking Time": 30})
 
     def startGame(self):
@@ -102,7 +111,11 @@ class game:
 
     def findBestMove(self):
         self.startTime = time.time()
-        self.moveTime = 10
+        self.moveTime = 5
+        fen = self.getFen()
+        fen = fen.split(" ")
+        if fen[1] == 'b':
+            self.OGplayer = "b"
         moves = self.getLegalMoves()
         ri = random.randint(0, len(moves) - 1)
         bestMove = moves[ri]
@@ -120,15 +133,13 @@ class game:
                 allMoves.sort(key=itemgetter(1),reverse=True)
                 previousMoves = allMoves
                 bestScore, bestMove = score, move
-                print(bestMove)
-            print(depth)
+                print(bestMove, depth)
         return bestMove, bestScore
 
 
     def Minimax(self, depth, OGDepth, maxPlayer, alpha, beta, startMoves):
         if time.time() - self.startTime > self.moveTime and depth == OGDepth:
             return None, None, None
-            print("skipping")
 
         if depth == OGDepth:
             self.miniMaxOGgoing = self.whiteToMove
@@ -139,6 +150,8 @@ class game:
             self.stockfishy.set_fen_position(fen)
             score = self.stockfishy.get_evaluation()
             score = score["value"]
+            if self.OGplayer == "b":
+                score = -score
             return None, score, None
         elif self.minimaxGameOver != None:
             score = 0
@@ -197,16 +210,101 @@ class game:
         move = self.Minimax(depth, depth, True, math.inf, -math.inf, None)
         return move
 
+def loadImages():
+    pieces = {'wP', 'wR', 'wN', 'wB', 'wK', 'wQ', 'bP', 'bR', 'bN', 'bB', 'bK', 'bQ'}
+    for piece in pieces:
+        IMAGES[piece] = p.transform.scale(p.image.load('Images/' + piece + '.png'), ((SQ_SIZE) ,(SQ_SIZE)))
+
+def drawGameState(screen, board):
+    drawBoard(screen)
+    # highlightSquares(screen, gs, validMoves, sqSelected)
+    drawPieces(screen, board)
+
+def drawBoard(screen):
+    global Colors
+    Colors = [p.Color("#ebc28e"), p.Color("#89420B")]
+    for r in range(DIMENSION):
+        for c in range(DIMENSION):
+            Color = Colors[((r+c)%2)]
+            p.draw.rect(screen, Color, p.Rect(c*SQ_SIZE, r*SQ_SIZE, SQ_SIZE, SQ_SIZE))
+
+def highlightSquares(screen, gs, validMoves, sqSelected):
+    if not gs.gameOver:
+        if len(sqSelected) > 0:
+            r, c = sqSelected
+            if gs.board[r][c][0] == ('w' if gs.WhiteToMove else 'b'):
+                s = p.Surface((SQ_SIZE, SQ_SIZE))
+                s.set_alpha(100)
+                s.fill(p.Color('yellow'))
+                screen.blit(s, (c*SQ_SIZE, r*SQ_SIZE))
+                s.fill(p.Color("red"))
+                for move in validMoves:
+                    if move.startRow == r and move.startCol == c:
+                        screen.blit(s, (SQ_SIZE*move.endCol, SQ_SIZE*move.endRow))
 
 
+# def getChessnotationOld():
+#     chessNotation = getrankfile(startRow, self.startCol) + self.getrankfile(self.endRow, self.endCol)
+#
+#     if self.pieceMoved[1] != "p":
+#         chessNotation = self.pieceMoved[1] + "-" + chessNotation
+#     print("Chess Notation Test", chessNotation)
+#     return chessNotation
+#     #Add advanced "true" chess notation
+#
+# def getrankfile(self, r, c):
+#     rankstoRows = {"1": 7, "2": 6, "3": 5, "4": 4, "5": 3, "6": 2, "7": 1, "8": 0}
+#     rowstoRanks = {v: k for k, v in rankstoRows.items()}
+#     filestoCols = {"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7}
+#     colstoFiles = {v: k for k, v in filestoCols.items()}
+#     return self.colstoFiles[c] + self.rowstoRanks[r]
+
+
+def drawPieces(screen, board):
+    for r in range(DIMENSION):
+        for c in range(DIMENSION):
+            piece = board[r][c]
+            if piece != "--":
+                image = IMAGES[piece]
+                screen.blit(image, p.Rect(c * SQ_SIZE, r * SQ_SIZE, SQ_SIZE, SQ_SIZE))
+
+def createBoardArray(fen):
+    ttboard = []
+    pieces = fen.split(" ", 1)[0]
+    rows = pieces.split("/")
+    for row in rows:
+        tempboard = []
+        for piece in row:
+            if piece.isdigit():
+                for i in range(0, int(piece)):
+                    tempboard.append("--")
+            else:
+                if piece.islower():
+                    tempboard.append("b" + piece.upper())
+                elif piece.upper():
+                    tempboard.append("w" + piece)
+        ttboard.append(tempboard)
+    return ttboard
 
 
 
 def main():
     numGames = 1
+    games = [game(numGames)]
+    running = True
+    p.init()
+    screen = p.display.set_mode((WIDHT, HEIGHT))
+    clock = p.time.Clock()
+    screen.fill(p.Color("Black"))
+    loadImages()
+    tempoboard = board
+    tempoarray = createBoardArray(tempoboard.fen())
+    drawGameState(screen, tempoarray)
+    clock.tick(MAX_FPS)
+    p.display.flip()
+
     while running:
         lastmove = None
-        games = [game(numGames)]
         for x in games:
             if x.starting == True:
                 x.startGame()
@@ -219,15 +317,23 @@ def main():
                 temp = temp[0]
                 lastmove = temp
                 x.makeMove(temp)
+                movecatalog.append(temp)
             else:
                 temp = x.findBestMove()
                 print(temp[1], "black move eval")
                 temp = temp[0]
                 lastmove = temp
                 x.makeMove(temp)
+                movecatalog.append(temp)
+        fen = games[0].getFen()
+        arrayBoard = createBoardArray(fen)
+        drawGameState(screen, arrayBoard)
+        clock.tick(MAX_FPS)
+        p.display.flip()
+        for e in p.event.get():
+            if e.type == p.QUIT:
+                running = False
 
-        board = chess.Board(games[0].getFen())
-        squares = board.attacks(chess.E4)
-        chess.svg.board(board, squares=squares, size=350)
+
 if __name__ == "__main__":
     main()
