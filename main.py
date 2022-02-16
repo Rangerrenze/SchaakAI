@@ -1,5 +1,4 @@
 import math
-
 import stockfish
 import random
 import chess
@@ -9,7 +8,7 @@ from operator import itemgetter
 import pygame as p
 import numpy
 
-board = chess.Board()
+board = chess.Board("N2k3r/1p4Rp/p1p5/8/PP6/8/1BPP1PQ1/R2K4 b - - 0 1")
 screenSize = 512
 WIDHT = HEIGHT = screenSize
 DIMENSION = 8
@@ -21,6 +20,7 @@ class game:
     def __init__(self, ID):
         self.ID = ID
         self.OGplayer = None
+        self.iterativeMinimax = True
         self.starting = True
         self.miniMaxOGgoing = True
         self.minimaxGameOver = False
@@ -29,12 +29,14 @@ class game:
         self.stockFishmove = None
         self.selfMove = None
         self.moveCatalog = []
-        self.whiteToMove = True
+        self.whiteToMove = False
         self.stockfishy = stockfish.Stockfish(
-        path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
+        path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=3, parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.stockfishy2 = stockfish.Stockfish(
             path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
             parameters={"Threads": 4, "Minimum Thinking Time": 30})
+        self.gameOver = False
+        self.whiteWin = False
 
     def startGame(self):
         self.board = board
@@ -59,10 +61,32 @@ class game:
     def makeMoveUCI(self, move):
         self.board.push(move)
         self.whiteToMove = not self.whiteToMove
+        self.updateGameOver()
 
     def undoMove(self):
         self.board.pop()
+        if self.gameOver:
+            self.gameOver = False
         self.whiteToMove = not self.whiteToMove
+
+    def updateGameOver(self):
+        if len(list(self.board.legal_moves)) == 0:
+            self.winChecker = self.CheckGameOver()
+            self.draw = self.checkDraw()
+            if self.draw or self.winChecker == True:
+                self.gameOver = True
+                self.checkWinColor()
+
+    def checkWinColor(self):
+        if self.gameOver:
+            if self.board.is_checkmate:
+                boardfen = self.board.fen
+                boardfen = str(boardfen)
+                boardfen = boardfen.split(" ")
+                if boardfen[1] == "b":
+                    self.whiteWin = False
+                elif boardfen[1] == "w":
+                    self.whiteWin = True
 
     def showBoard(self):
         print(self.ID)
@@ -92,7 +116,6 @@ class game:
         randomm = random.randint(0, leng)
         return legalMoves[randomm]
 
-
     def getLegalMoves(self):
         legalMoves = str(self.board.legal_moves)
         legalMoves = legalMoves.split("(")
@@ -104,7 +127,7 @@ class game:
         return list(self.board.legal_moves)
 
     def CheckGameOver(self):
-        return board.outcome()
+        return self.board.is_checkmate()
 
     def checkDraw(self):
         threefold = board.can_claim_threefold_repetition()
@@ -146,7 +169,7 @@ class game:
                 startMoves = self.getLegalMoves()
             else:
                 startMoves = previousMoves
-
+            self.iterativeMinimax = True
             move, score, allMoves = self.Minimax(depth, depth, True, math.inf, -math.inf, startMoves)
             if move:
                 allMoves.sort(key=itemgetter(1),reverse=True)
@@ -155,11 +178,9 @@ class game:
                 print(bestMove, depth)
         return bestMove, bestScore
 
-
     def Minimax(self, depth, OGDepth, maxPlayer, alpha, beta, startMoves):
-        if time.time() - self.startTime > self.moveTime and depth == OGDepth:
+        if time.time() - self.startTime > self.moveTime and depth == OGDepth and self.iterativeMinimax:
             return None, None, None
-
         if depth == OGDepth:
             self.miniMaxOGgoing = self.whiteToMove
         self.minimxDraw = self.checkDraw()
@@ -172,18 +193,18 @@ class game:
             if self.OGplayer == "b":
                 score = -score
             return None, score, None
-        elif self.minimaxGameOver != None:
+        elif self.minimaxGameOver == True:
             score = 0
             if (self.OGplayer == "w" and self.whiteToMove) or (self.OGplayer == "b" and not self.whiteToMove):
                 score = math.inf
             if (self.OGplayer == "w" and not self.whiteToMove) or (self.OGplayer == "b" and self.whiteToMove):
                 score = -math.inf
-            return None, score
+            return None, score, None
         elif self.minimxDraw:
             score = 100000
             return None, score, None
         allmoves = []
-        if not depth == OGDepth or OGDepth == 1:
+        if not depth == OGDepth or OGDepth == 1 or not self.iterativeMinimax:
             moves = self.getLegalMoves()
             ri = random.randint(0, len(moves)-1)
             bestMove = moves[ri]
@@ -193,7 +214,6 @@ class game:
             for tempmove in movestemp:
                 moves.append(tempmove[0])
             bestMove = moves[0]
-
 
         if maxPlayer:
             maxEval = -math.inf
@@ -226,7 +246,10 @@ class game:
             return bestMove, minEval, allmoves
 
     def getMinimaxMove(self, depth):
-        move = self.Minimax(depth, depth, True, math.inf, -math.inf, None)
+        legalmoves = self.getLegalMoves()
+        self.iterativeMinimax = False
+        move = self.Minimax(depth, depth, True, math.inf, -math.inf, legalmoves)
+        print("move", move)
         return move
 
 def loadImages():
@@ -234,9 +257,9 @@ def loadImages():
     for piece in pieces:
         IMAGES[piece] = p.transform.scale(p.image.load('Images/' + piece + '.png'), ((SQ_SIZE) ,(SQ_SIZE)))
 
-def drawGameState(screen, board):
+def drawGameState(screen, board, validmoves, whiteToMove, sqSelected):
     drawBoard(screen)
-    # highlightSquares(screen, gs, validMoves, sqSelected)
+    highlightSquares(screen, validmoves, whiteToMove, board, sqSelected)
     drawPieces(screen, board)
 
 def drawBoard(screen):
@@ -247,22 +270,21 @@ def drawBoard(screen):
             Color = Colors[((r+c)%2)]
             p.draw.rect(screen, Color, p.Rect(c*SQ_SIZE, r*SQ_SIZE, SQ_SIZE, SQ_SIZE))
 
-def highlightSquares(screen, gs, validMoves, sqSelected):
-    if not gs.gameOver:
-        if len(sqSelected) > 0:
-            r, c = sqSelected
-            if gs.board[r][c][0] == ('w' if gs.WhiteToMove else 'b'):
-                s = p.Surface((SQ_SIZE, SQ_SIZE))
-                s.set_alpha(100)
-                s.fill(p.Color('yellow'))
-                screen.blit(s, (c*SQ_SIZE, r*SQ_SIZE))
-                s.fill(p.Color("red"))
-                for move in validMoves:
-                    if move.startRow == r and move.startCol == c:
-                        screen.blit(s, (SQ_SIZE*move.endCol, SQ_SIZE*move.endRow))
-
-
-
+def highlightSquares(screen, validmoves, whiteToMove, board, sqSelected):
+    if len(sqSelected) > 0:
+        r, c = sqSelected
+        if board[r][c][0] == ('w' if whiteToMove else 'b'):
+            s = p.Surface((SQ_SIZE, SQ_SIZE))
+            s.set_alpha(100)
+            s.fill(p.Color('yellow'))
+            screen.blit(s, (c*SQ_SIZE, r*SQ_SIZE))
+            s.fill(p.Color("red"))
+            for move in validmoves:
+                move = str(move)
+                startRow, startCol = returnMover(move[0], move[1])
+                if startRow == r and startCol == c:
+                    endRow, endCol = returnMover(move[2], move[3])
+                    screen.blit(s, (SQ_SIZE*endCol, SQ_SIZE*endRow))
 
 def drawPieces(screen, board):
     for r in range(DIMENSION):
@@ -290,8 +312,6 @@ def createBoardArray(fen):
         ttboard.append(tempboard)
     return ttboard
 
-
-
 def main():
     MultipleGames = False #System for enabling multiple gamess at a time, IE training AI
     numGames = 1
@@ -308,58 +328,67 @@ def main():
     clock = p.time.Clock()
     screen.fill(p.Color("Black"))
     loadImages()
+    moveMade = False
+    sqselected = ()
+    playerclicks = []
     tempoboard = chess.Board()
     tempoarray = createBoardArray(tempoboard.fen())
-    drawGameState(screen, tempoarray)
+    validMoves = []
+    validMoves = None
+    drawGameState(screen, tempoarray, validMoves, games.whiteToMove, sqselected)
     clock.tick(MAX_FPS)
     p.display.flip()
     whiteAI = False
-    blackAI = False
-    sqselected = ()
-    playerclicks = []
-
+    blackAI = True
 
     while running:
-        lastmove = None
         if MultipleGames:
             for x in games:
-                if x.starting == True:
-                    x.startGame()
-                x.showBoard()
-                fen = x.getFen()
-                fen = fen.split(" ")
-                if fen[1] == 'w' and whiteAI:
-                    temp = x.findBestMove()
-                    print(temp[1], "white move eval")
-                    temp = temp[0]
-                    lastmove = temp
-                    x.makeMove(temp)
-                    x.moveCatalog.append(temp)
-                elif fen[1] == 'b' and blackAI:
-                    temp = x.findBestMove()
-                    print(temp[1], "black move eval")
-                    temp = temp[0]
-                    lastmove = temp
-                    x.makeMove(temp)
-                    x.moveCatalog.append(temp)
+                if not x.gameOver:
+                    if x.starting == True:
+                        x.startGame()
+                    x.showBoard()
+                    fen = x.getFen()
+                    fen = fen.split(" ")
+                    if fen[1] == 'w' and whiteAI:
+                        temp = x.findBestMove()
+                        print(temp[1], "white move eval")
+                        temp = temp[0]
+                        x.makeMove(temp)
+                        x.moveCatalog.append(temp)
+                    elif fen[1] == 'b' and blackAI:
+                        temp = x.findBestMove()
+                        print(temp[1], "black move eval")
+                        temp = temp[0]
+                        x.makeMove(temp)
+                        x.moveCatalog.append(temp)
+                    games[x].updateGameOver()
+                else:
+                    pass
         if MultipleGames:
+            for e in p.event.get():
+                if e.type == p.QUIT:
+                    running = False
             fen = games[0].getFen()
+            arrayBoard = createBoardArray(fen)
+            legalMoves = games[0].getLegalMovesUCI()
+            whiteToMove = games[0].whiteToMove
+            sqselected = []
+            drawGameState(screen, arrayBoard, legalMoves, whiteToMove, sqselected)
+            clock.tick(MAX_FPS)
+            p.display.flip()
         else:
             games.startGame()
-            fen = games.getFen()
-        arrayBoard = createBoardArray(fen)
-        drawGameState(screen, arrayBoard)
-        clock.tick(MAX_FPS)
-        p.display.flip()
-        if MultipleGames:
+            arrayBoard = createBoardArray(games.getFen())
+            whiteToMove = games.whiteToMove
+            validmoves = games.getLegalMovesUCI()
+            drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+            clock.tick(MAX_FPS)
+            p.display.flip()
             for e in p.event.get():
                 if e.type == p.QUIT:
                     running = False
-        else:
-            for e in p.event.get():
-                if e.type == p.QUIT:
-                    running = False
-                elif e.type ==p.MOUSEBUTTONDOWN:
+                elif e.type ==p.MOUSEBUTTONDOWN and not games.gameOver:
                     location = p.mouse.get_pos()
                     col = location[0] // SQ_SIZE
                     row = location[1] // SQ_SIZE
@@ -369,7 +398,6 @@ def main():
                     else:
                         sqselected = (row, col)
                         playerclicks.append(sqselected)
-                    print(len(playerclicks))
                     if len(playerclicks) == 2:
                         move = str(getMover(playerclicks[0][0], playerclicks[0][1]) + getMover(playerclicks[1][0], playerclicks[1][1]))
                         if games.whiteToMove and playerclicks[0][0] == 1 and playerclicks[1][0] == 0:
@@ -383,48 +411,76 @@ def main():
                                 move = getPromotionInput(move)
 
                         validmoves = games.getLegalMovesUCI()
-                        temp = True
                         for x in validmoves:
-                            # print(x)
                             if str(x) == move:
-                                print(move)
+                                # print(move)
+                                # games.makeMoveUCI(x)
+                                # games.moveCatalog.append(x)
+                                # playerclicks = []
+                                # sqselected = ()
+                                # fen = games.getFen()
+                                # arrayBoard = createBoardArray(fen)
+                                # drawGameState(screen, arrayBoard)
+                                # p.display.flip()
+                                # games.analyseBoard()
+                                # print(games.whiteToMove)
                                 games.makeMoveUCI(x)
-                                games.moveCatalog.append(x)
+                                xt = str(x)
+                                games.moveCatalog.append(xt)
+                                print(move)
+                                sqselected = []
                                 playerclicks = []
-                                sqselected = ()
-                                fen = games.getFen()
-                                arrayBoard = createBoardArray(fen)
-                                drawGameState(screen, arrayBoard)
-                                p.display.flip()
                                 games.analyseBoard()
-                                print(games.whiteToMove)
-                                temp = False
-                        if temp:
-                            playerclicks = []
-                            sqselected = []
+                                moveMade = True
 
+                        if not moveMade:
+                            playerclicks = [sqselected]
+                elif e.type == p.KEYDOWN:
+                    if e.key == p.K_z:
+                        games.undoMove()
+                        moveMade = True
+                    if e.key == p.K_r:
+                        numGames = games.ID =+ 1
+                        games = game(numGames)
 
-
-
-
-
-
-
-            if whiteAI and games.whiteToMove:
+            if whiteAI and games.whiteToMove and not games.gameOver:
+                Minimax = True
                 mover = games.findBestMove()
-                if type(mover) == list or bytearray:
+                if Minimax:
                     print(mover[1], "White move eval")
                     mover = mover[0]
                 games.makeMove(mover)
                 games.moveCatalog.append(mover)
-            elif blackAI and not games.whiteToMove:
+                moveMade = True
+            elif blackAI and not games.whiteToMove and not games.gameOver:
+                Minimax = True
                 mover = games.findBestMove()
-                if type(mover) == list or bytearray:
+                if Minimax == True:
                     print(mover[1], "Black move eval")
                     mover = mover[0]
                 games.makeMove(mover)
                 games.moveCatalog.append(mover)
+                moveMade = True
+            if games.gameOver:
+                if games.whiteWin:
+                    print("Game Over, white win")
+                elif not games.whiteWin and not games.checkDraw():
+                    print("Game Over, Black win")
+                elif not games.whiteWin and games.checkDraw():
+                    print("Game Over, Draw")
+                running = False
 
+            if moveMade:
+                games.updateGameOver()
+                print("move catalog: ", games.moveCatalog)
+                print("Move done")
+                if games.whiteToMove:
+                    print("White Move")
+                else:
+                    print("black Move")
+                sqselected = []
+                playerclicks = []
+                moveMade = False
 
 
 def getMover(r, c):
@@ -434,6 +490,12 @@ def getMover(r, c):
     colstoFiles = {v: k for k, v in filestoCols.items()}
     return colstoFiles[c] + rowstoRanks[r]
 
+def returnMover(letter, number):
+    rowstoRanks = {7: "1", 6: "2", 5: "3", 4: "4", 3: "5", 2: "6", 1: "7", 0: "8"}
+    rankstoRows = {v: k for k, v in rowstoRanks.items()}
+    colstoFiles = {0: "a", 1: "b", 2: "c", 3: "d", 4: "e", 5: "f", 6: "g", 7: "h"}
+    filestoCols = {v: k for k, v in colstoFiles.items()}
+    return rankstoRows[number], filestoCols[letter]
 
 def getPromotionInput(move):
     print("Castlemove, input desired piece (lowercases(, options = q, b, r, n")
@@ -445,7 +507,6 @@ def getPromotionInput(move):
         print("wrong, try again")
         move = getPromotionInput(move)
     return move
-
 
 if __name__ == "__main__":
     main()
