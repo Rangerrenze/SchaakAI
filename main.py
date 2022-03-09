@@ -6,9 +6,9 @@ import chess.svg
 import time
 from operator import itemgetter
 import pygame as p
-import numpy
+# import numpy
 
-board = chess.Board("N2k3r/1p4Rp/p1p5/8/PP6/8/1BPP1PQ1/R2K4 b - - 0 1")
+board = chess.Board()
 screenSize = 512
 WIDHT = HEIGHT = screenSize
 DIMENSION = 8
@@ -29,14 +29,14 @@ class game:
         self.stockFishmove = None
         self.selfMove = None
         self.moveCatalog = []
-        self.whiteToMove = False
+        self.whiteToMove = True
         self.stockfishy = stockfish.Stockfish(
-        path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=3, parameters={"Threads": 4, "Minimum Thinking Time": 30})
+        path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.stockfishy2 = stockfish.Stockfish(
-            path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
+            path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
             parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.gameOver = False
-        self.whiteWin = False
+        self.whiteWin = True
 
     def startGame(self):
         self.board = board
@@ -70,23 +70,25 @@ class game:
         self.whiteToMove = not self.whiteToMove
 
     def updateGameOver(self):
-        if len(list(self.board.legal_moves)) == 0:
-            self.winChecker = self.CheckGameOver()
-            self.draw = self.checkDraw()
-            if self.draw or self.winChecker == True:
-                self.gameOver = True
-                self.checkWinColor()
+        self.winChecker = self.CheckGameOver()
+        self.draw = self.checkDraw()
+        print("test2")
+        self.checkWinColor()
+        if self.draw or self.winChecker == True:
+            self.gameOver = True
+
 
     def checkWinColor(self):
-        if self.gameOver:
-            if self.board.is_checkmate:
-                boardfen = self.board.fen
-                boardfen = str(boardfen)
-                boardfen = boardfen.split(" ")
-                if boardfen[1] == "b":
-                    self.whiteWin = False
-                elif boardfen[1] == "w":
-                    self.whiteWin = True
+        print("test3")
+        boardfen = self.board.fen
+        boardfen = str(boardfen)
+        boardfen = boardfen.split(" ")
+        if boardfen[1] == "b":
+            self.whiteWin = True
+            print("chekcing white win")
+        elif boardfen[1] == "w":
+            self.whiteWin = False
+            print("checking black win")
 
     def showBoard(self):
         print(self.ID)
@@ -151,7 +153,7 @@ class game:
 
     def findBestMove(self):
         self.startTime = time.time()
-        self.moveTime = 5
+        self.moveTime = 10
         fen = self.getFen()
         fen = fen.split(" ")
         if fen[1] == 'b':
@@ -340,7 +342,7 @@ def main():
     p.display.flip()
     whiteAI = False
     blackAI = True
-
+    movesPossible = True
     while running:
         if MultipleGames:
             for x in games:
@@ -350,13 +352,13 @@ def main():
                     x.showBoard()
                     fen = x.getFen()
                     fen = fen.split(" ")
-                    if fen[1] == 'w' and whiteAI:
+                    if fen[1] == 'w' and whiteAI and x.gameOver:
                         temp = x.findBestMove()
                         print(temp[1], "white move eval")
                         temp = temp[0]
                         x.makeMove(temp)
                         x.moveCatalog.append(temp)
-                    elif fen[1] == 'b' and blackAI:
+                    elif fen[1] == 'b' and blackAI and x.gameOver:
                         temp = x.findBestMove()
                         print(temp[1], "black move eval")
                         temp = temp[0]
@@ -365,7 +367,7 @@ def main():
                     games[x].updateGameOver()
                 else:
                     pass
-        if MultipleGames:
+        if MultipleGames and movesPossible:
             for e in p.event.get():
                 if e.type == p.QUIT:
                     running = False
@@ -413,17 +415,6 @@ def main():
                         validmoves = games.getLegalMovesUCI()
                         for x in validmoves:
                             if str(x) == move:
-                                # print(move)
-                                # games.makeMoveUCI(x)
-                                # games.moveCatalog.append(x)
-                                # playerclicks = []
-                                # sqselected = ()
-                                # fen = games.getFen()
-                                # arrayBoard = createBoardArray(fen)
-                                # drawGameState(screen, arrayBoard)
-                                # p.display.flip()
-                                # games.analyseBoard()
-                                # print(games.whiteToMove)
                                 games.makeMoveUCI(x)
                                 xt = str(x)
                                 games.moveCatalog.append(xt)
@@ -444,6 +435,7 @@ def main():
                         games = game(numGames)
 
             if whiteAI and games.whiteToMove and not games.gameOver:
+                print("white Minimax move")
                 Minimax = True
                 mover = games.findBestMove()
                 if Minimax:
@@ -453,6 +445,7 @@ def main():
                 games.moveCatalog.append(mover)
                 moveMade = True
             elif blackAI and not games.whiteToMove and not games.gameOver:
+                print("black Minimax move")
                 Minimax = True
                 mover = games.findBestMove()
                 if Minimax == True:
@@ -462,13 +455,14 @@ def main():
                 games.moveCatalog.append(mover)
                 moveMade = True
             if games.gameOver:
-                if games.whiteWin:
+                if games.whiteWin and movesPossible:
                     print("Game Over, white win")
-                elif not games.whiteWin and not games.checkDraw():
+                elif not games.whiteWin and not games.checkDraw() and movesPossible:
                     print("Game Over, Black win")
-                elif not games.whiteWin and games.checkDraw():
+                elif not games.whiteWin and games.checkDraw() and movesPossible:
                     print("Game Over, Draw")
-                running = False
+                movesPossible = False
+
 
             if moveMade:
                 games.updateGameOver()
