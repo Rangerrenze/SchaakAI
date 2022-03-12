@@ -2,11 +2,11 @@ import math
 import stockfish
 import random
 import chess
-import chess.svg
 import time
 from operator import itemgetter
 import pygame as p
 # import numpy
+import MCTS
 
 board = chess.Board()
 screenSize = 512
@@ -15,10 +15,18 @@ DIMENSION = 8
 SQ_SIZE = HEIGHT // DIMENSION
 MAX_FPS = 15
 IMAGES = {}
+path = "openingBook.txt"
+openingbook = []
+
+with open(path, "r") as file:
+    for line in file:
+        tempLine = line.split(" ")
+        openingbook.append(tempLine)
 
 class game:
     def __init__(self, ID):
         self.ID = ID
+        self.moveTracker = 0
         self.OGplayer = None
         self.iterativeMinimax = True
         self.starting = True
@@ -31,9 +39,9 @@ class game:
         self.moveCatalog = []
         self.whiteToMove = True
         self.stockfishy = stockfish.Stockfish(
-        path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
+        path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.stockfishy2 = stockfish.Stockfish(
-            path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
+            path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
             parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.gameOver = False
         self.whiteWin = True
@@ -56,15 +64,22 @@ class game:
 
     def makeMove(self, move):
         self.board.push_san(move)
+        self.moveTracker += 1
+        self.moveCatalog.append(move)
         self.whiteToMove = not self.whiteToMove
 
     def makeMoveUCI(self, move):
+        tempmove = self.board.san(move)
         self.board.push(move)
+        self.moveCatalog.append(tempmove)
+        self.moveTracker +=1
         self.whiteToMove = not self.whiteToMove
         self.updateGameOver()
 
     def undoMove(self):
         self.board.pop()
+        self.moveTracker -= 1
+        self.moveCatalog.pop()
         if self.gameOver:
             self.gameOver = False
         self.whiteToMove = not self.whiteToMove
@@ -143,6 +158,29 @@ class game:
         else:
             return False
 
+    def getMovesAdvanced(self):
+        possibleMoves = []
+        if self.moveTracker < 7:
+            for i in openingbook:
+                if self.moveTracker == 0:
+                    mover = i[self.moveTracker]
+                    if mover not in possibleMoves:
+                        possibleMoves.append(mover)
+                elif self.moveTracker != 0:
+                    lastMove = self.moveCatalog[self.moveTracker - 1]
+                    if i[self.moveTracker - 1] == lastMove:
+                        mover = i[self.moveTracker]
+                        legalMoves = self.getLegalMoves()
+                        if mover in legalMoves:
+                            if mover not in possibleMoves:
+                                possibleMoves.append(mover)
+            if len(possibleMoves) == 0:
+                possibleMoves = self.getLegalMoves()
+        else:
+            possibleMoves = self.getLegalMoves()
+        return possibleMoves
+
+
     def analyseBoard(self):
         fen = self.getFen()
         self.stockfishy2.set_fen_position(fen)
@@ -168,7 +206,7 @@ class game:
         startMoves = []
         for depth in range(100):
             if depth == 1:
-                startMoves = self.getLegalMoves()
+                startMoves = self.getMovesAdvanced()
             else:
                 startMoves = previousMoves
             self.iterativeMinimax = True
@@ -195,19 +233,18 @@ class game:
             if self.OGplayer == "b":
                 score = -score
             return None, score, None
-        elif self.minimaxGameOver == True:
+        elif self.board.is_game_over():
             score = 0
-            if (self.OGplayer == "w" and self.whiteToMove) or (self.OGplayer == "b" and not self.whiteToMove):
+            if (self.OGplayer == "w" and self.board.result() == "1-0") or (self.OGplayer == "b" and self.board.result() == "0-1"):
                 score = math.inf
-            if (self.OGplayer == "w" and not self.whiteToMove) or (self.OGplayer == "b" and self.whiteToMove):
+            elif (self.OGplayer == "b" and self.board.result() == "1-0") or (self.OGplayer == "w" and self.board.result() == "0-1"):
                 score = -math.inf
-            return None, score, None
-        elif self.minimxDraw:
-            score = 100000
+            else:
+                score = 4200
             return None, score, None
         allmoves = []
         if not depth == OGDepth or OGDepth == 1 or not self.iterativeMinimax:
-            moves = self.getLegalMoves()
+            moves = self.getMovesAdvanced()
             ri = random.randint(0, len(moves)-1)
             bestMove = moves[ri]
         else:
@@ -248,11 +285,21 @@ class game:
             return bestMove, minEval, allmoves
 
     def getMinimaxMove(self, depth):
-        legalmoves = self.getLegalMoves()
+        legalmoves = self.getMovesAdvanced()
         self.iterativeMinimax = False
         move = self.Minimax(depth, depth, True, math.inf, -math.inf, legalmoves)
         print("move", move)
         return move
+
+    def getMCTSmove(self):
+        fen = self.getFen()
+        fen = fen.split(" ")
+        turn = int(fen[5])
+        if turn < 4:
+            mover = self.findBestMove()[0]
+        else:
+            mover = MCTS.getMCTSmove(self.getFen())
+        return mover
 
 def loadImages():
     pieces = {'wP', 'wR', 'wN', 'wB', 'wK', 'wQ', 'bP', 'bR', 'bN', 'bB', 'bK', 'bQ'}
@@ -357,13 +404,11 @@ def main():
                         print(temp[1], "white move eval")
                         temp = temp[0]
                         x.makeMove(temp)
-                        x.moveCatalog.append(temp)
                     elif fen[1] == 'b' and blackAI and x.gameOver:
                         temp = x.findBestMove()
                         print(temp[1], "black move eval")
                         temp = temp[0]
                         x.makeMove(temp)
-                        x.moveCatalog.append(temp)
                     games[x].updateGameOver()
                 else:
                     pass
@@ -417,12 +462,12 @@ def main():
                             if str(x) == move:
                                 games.makeMoveUCI(x)
                                 xt = str(x)
-                                games.moveCatalog.append(xt)
                                 print(move)
                                 sqselected = []
                                 playerclicks = []
                                 games.analyseBoard()
                                 moveMade = True
+
 
                         if not moveMade:
                             playerclicks = [sqselected]
@@ -442,7 +487,9 @@ def main():
                     print(mover[1], "White move eval")
                     mover = mover[0]
                 games.makeMove(mover)
-                games.moveCatalog.append(mover)
+                drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                clock.tick(MAX_FPS)
+                p.display.flip()
                 moveMade = True
             elif blackAI and not games.whiteToMove and not games.gameOver:
                 print("black Minimax move")
@@ -451,8 +498,11 @@ def main():
                 if Minimax == True:
                     print(mover[1], "Black move eval")
                     mover = mover[0]
+                print("mover,", mover)
                 games.makeMove(mover)
-                games.moveCatalog.append(mover)
+                drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                clock.tick(MAX_FPS)
+                p.display.flip()
                 moveMade = True
             if games.gameOver:
                 if games.whiteWin and movesPossible:
@@ -474,6 +524,7 @@ def main():
                     print("black Move")
                 sqselected = []
                 playerclicks = []
+
                 moveMade = False
 
 
