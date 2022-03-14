@@ -84,7 +84,7 @@ def MCTSRollback(currentNode, reward):
 
 
 
-def MCTSPredict(currentNode, over, white, iterations = 30):
+def MCTSPredict(currentNode, over, white, iterations = 400):
     if over:
         return -1
     moveCatalog = getAdvancedMoves(currentNode.state.fen())

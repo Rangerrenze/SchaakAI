@@ -387,7 +387,7 @@ def main():
     drawGameState(screen, tempoarray, validMoves, games.whiteToMove, sqselected)
     clock.tick(MAX_FPS)
     p.display.flip()
-    whiteAI = False
+    whiteAI = True
     blackAI = True
     movesPossible = True
     while running:
@@ -481,8 +481,8 @@ def main():
 
             if whiteAI and games.whiteToMove and not games.gameOver:
                 print("white Minimax move")
-                Minimax = True
-                mover = games.findBestMove()
+                Minimax = False
+                mover = games.getMCTSmove()
                 if Minimax:
                     print(mover[1], "White move eval")
                     mover = mover[0]
