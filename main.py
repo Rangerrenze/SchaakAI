@@ -39,9 +39,9 @@ class game:
         self.moveCatalog = []
         self.whiteToMove = True
         self.stockfishy = stockfish.Stockfish(
-        path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
+        path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.stockfishy2 = stockfish.Stockfish(
-            path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
+            path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
             parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.gameOver = False
         self.whiteWin = True
@@ -160,7 +160,7 @@ class game:
 
     def getMovesAdvanced(self):
         possibleMoves = []
-        if self.moveTracker < 7:
+        if self.moveTracker < 16:
             for i in openingbook:
                 if self.moveTracker == 0:
                     mover = i[self.moveTracker]
@@ -295,7 +295,7 @@ class game:
         fen = self.getFen()
         fen = fen.split(" ")
         turn = int(fen[5])
-        if turn < 4:
+        if self.moveTracker < 17:
             mover = self.findBestMove()[0]
         else:
             mover = MCTS.getMCTSmove(self.getFen())
