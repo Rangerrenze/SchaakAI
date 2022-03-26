@@ -13,7 +13,7 @@ import os
 
 def updateSettings():
 
-    global blackAIplaying, whiteAIplaying, IterativeMinimax, MonteCarlo, NormalStockfish, NeuralNetworkMove, NeuralNetworkTraining, loadCheckpoint, checkpointing, runGenerations, NEATactive
+    global blackAIplaying, whiteAIplaying, IterativeMinimax, MonteCarlo, NormalStockfish, NeuralNetworkMove, NeuralNetworkTraining, loadCheckpoint, checkpointing, runGenerations, NEATactive, randomMoves
     blackAIplaying = True
     whiteAIplaying = False
     IterativeMinimax = False
@@ -24,6 +24,7 @@ def updateSettings():
     loadCheckpoint = 0
     checkpointing = False
     runGenerations = 300
+    randomMoves = False
     NEATactive = False
     if NeuralNetworkMove or NeuralNetworkTraining:
         NEATactive = True
@@ -88,6 +89,12 @@ class game:
         test = self.stockfishy2.get_best_move()
         return test
 
+    def getNNStockFishMove(self):
+        fenn = self.getFen()
+        self.NNStockfishy.set_fen_position(fenn)
+        test = self.NNStockfishy.get_best_move()
+        return test
+
     def makeMove(self, move):
         self.board.push_san(move)
         self.moveTracker += 1
@@ -101,6 +108,14 @@ class game:
         self.moveTracker +=1
         self.whiteToMove = not self.whiteToMove
         self.updateGameOver()
+
+    def makeMoveNN(self, move):
+        tempmove = self.board.san(move)
+        self.board.push(move)
+        self.moveCatalog.append(tempmove)
+        self.moveTracker += 1
+        self.whiteNN = not self.whiteToMove
+        self.NNGameOverUpdate()
 
     def undoMove(self):
         self.board.pop()
@@ -153,10 +168,8 @@ class game:
             self.verifyMove(move, legalMoves)
 
     def NNGameOverUpdate(self):
-        gameOver = False
-        self.winChecker = self.CheckGameOver()
         self.draw = self.checkDraw()
-        if self.draw or self.winChecker == True:
+        if self.board.is_game_over():
             boardfen = self.board.fen
             boardfen = str(boardfen)
             boardfen = boardfen.split(" ")
@@ -168,14 +181,25 @@ class game:
                 else:
                     index = self.ID - 1
                     ge[index].fitness += 1000
+                    tempELO = stockfishELO
                     stockfishELO += 50
-                    removeBoard(index)
+                    f = open("NNwins.txt", "a")
+                    writingString = "NN win" + str(tempELO) + str(self.moveCatalog)
+                    f.write(writingString)
+                    f.close()
             elif boardfen[1] == "w":
                 if self.whiteNN:
                     index = self.ID -1
                     ge[index].fitness += 1000
                     removeBoard(index)
+                    tempELO = stockfishELO
                     stockfishELO += 50
+                    f = open("NNwins.txt", "a")
+                    writingString = "NN win" + str(tempELO) + str(self.moveCatalog)
+                    f.write(writingString)
+                    f.close()
+
+
                 else:
                     index = self.ID - 1
                     ge[index].fitness -= 100
@@ -566,27 +590,28 @@ def main(genomes, config):
     whiteAI = whiteAIplaying
     training = NeuralNetworkTraining
     movesPossible = True
-    NN = True
     while running:
         if MultipleGames:
             for x in games:
                 if not x.gameOver:
                     if x.starting == True:
                         x.startGame()
-                    x.showBoard()
                     fen = x.getFen()
                     fen = fen.split(" ")
-                    if fen[1] == 'w' and (whiteAI and training == False) and x.gameOver and (x.ID%2 == 0 and training == True):
-                        temp = x.findBestMove()
-                        print(temp[1], "white move eval")
-                        temp = temp[0]
-                        x.makeMove(temp)
-                    elif fen[1] == 'b' and (blackAI and training == False) and x.gameOver and (x.ID%2 != 0 and training == True):
-                        temp = x.findBestMove()
-                        print(temp[1], "black move eval")
-                        temp = temp[0]
-                        x.makeMove(temp)
-                    games[x].updateGameOver()
+                    if fen[1] == 'w':
+                        if x.ID % 2 == 0:
+                            temp = x.getNNmove()
+                            x.makeNNmove(temp)
+                        else:
+                            temp = x.getNNStockFishMove()
+                            x.makeMove(temp)
+                    elif fen[1] == 'b':
+                        if x.ID % 2 == 0:
+                            temp = x.getNNStockFishMove()
+                            x.makeMove(temp)
+                        else:
+                            temp = x.getNNmove()
+                            x.makeNNmove(temp)
                 else:
                     pass
         if MultipleGames and movesPossible:
@@ -686,6 +711,12 @@ def main(genomes, config):
                     drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
                     clock.tick(MAX_FPS)
                     p.display.flip()
+                elif randomMoves:
+                    mover = games.getRandomMove()
+                    games.makeMove(mover)
+                    drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                    clock.tick(MAX_FPS)
+                    p.display.flip()
                 else:
                     mover = games.findBestMove()
                     print(mover[1], "White move eval")
@@ -720,6 +751,12 @@ def main(genomes, config):
                     p.display.flip()
                 elif NeuralNetworkMove:
                     mover = games.getNNmove()
+                    games.makeMove(mover)
+                    drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                    clock.tick(MAX_FPS)
+                    p.display.flip()
+                elif randomMoves:
+                    mover = games.getRandomMove()
                     games.makeMove(mover)
                     drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
                     clock.tick(MAX_FPS)
