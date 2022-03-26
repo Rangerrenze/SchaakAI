@@ -3,6 +3,11 @@ import math
 import random
 import time
 from math import inf
+from os import getpid
+import multiprocessing
+from operator import itemgetter
+
+Q = multiprocessing.Queue()
 
 class node:
     def __init__(self):
@@ -35,7 +40,7 @@ def MCTSRollout(currentNode):
             return -1, currentNode
         else:
             return 0.5, currentNode
-    moveCatalog = getAdvancedMoves(currentNode.state.fen())
+    moveCatalog = [currentNode.state.san(i) for i in list(currentNode.state.legal_moves)]
     for i in moveCatalog:
         tempState = chess.Board(currentNode.state.fen())
         tempState.push_san(i)
@@ -84,10 +89,10 @@ def MCTSRollback(currentNode, reward):
 
 
 
-def MCTSPredict(currentNode, over, white, iterations = 400):
+def MCTSPredict(currentNode, over, white, queue, iterations = 40):
     if over:
         return -1
-    moveCatalog = getAdvancedMoves(currentNode.state.fen())
+    moveCatalog = [currentNode.state.san(i) for i in list(currentNode.state.legal_moves)]
     mapStateMove = dict()
     for i in moveCatalog:
         tempState = chess.Board(currentNode.state.fen())
@@ -140,7 +145,8 @@ def MCTSPredict(currentNode, over, white, iterations = 400):
             if temp>mx:
                 mx = temp
                 selectedMove = mapStateMove[i]
-        return selectedMove
+        returner = [selectedMove, mx]
+        queue.put(returner)
     else:
         mn = inf
         idx = -1
@@ -150,8 +156,8 @@ def MCTSPredict(currentNode, over, white, iterations = 400):
             if temp<mn:
                 mn = temp
                 selectedMove = mapStateMove[i]
-        return selectedMove
-
+        returner = [selectedMove, mn]
+        queue.put(returner)
 def getLegalMoves(fen):
     board = chess.Board(fen)
     legalMoves = str(board.legal_moves)
@@ -201,8 +207,18 @@ def getMCTSmove(boardFen):
     mover = fen[1]
     white = 1 if mover == "w" else 0
     root = node()
-    root.state = board
-    result = MCTSPredict(root, board.is_game_over(), white)
-    return result
 
-
+    multiprocessingAmount = 5
+    q = multiprocessing.Queue()
+    jobs = []
+    results = []
+    for i in range(multiprocessingAmount):
+        p = multiprocessing.Process(target=MCTSPredict, args=(root, board.is_game_over(), white, q))
+        jobs.append(p)
+        p.start()
+    for p in jobs:
+        rest = q.get()
+        results.append(rest)
+    for p in jobs:
+        p.join()
+    print(results)
