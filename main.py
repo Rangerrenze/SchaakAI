@@ -20,7 +20,7 @@ def updateSettings():
     MonteCarlo = False
     NormalStockfish = False
     NeuralNetworkMove = False
-    NeuralNetworkTraining = False
+    NeuralNetworkTraining = True
     loadCheckpoint = 0
     checkpointing = False
     runGenerations = 300
@@ -402,7 +402,7 @@ class game:
             output = nets[index].activate(
                 input
             )
-
+            print("running")
             if len(str(output)) == 4:
                 ge[index].fitness += 5
                 move = str(getMover(output[0], output[1]) + getMover(output[2], output[3]))
@@ -435,6 +435,28 @@ def getInput(fen, allmoves):
     generatedInput.append(moveInput)
     generatedInput.append(boardInput)
     generatedInput.extend([])
+
+    return generatedInput
+
+def getInput(fen, allmoves):
+    generatedInput = []
+    moveInput = []
+    boardInput = map_fen_to_input(fen)
+    nodes_moves = 100
+    tempfen = fen.split(" ")
+    if tempfen[1] == 'w':
+        generatedInput.append(1)
+    else:
+        generatedInput.append(-1)
+
+    for move in allmoves:
+        move = str(move)
+        temp = int(NNInputMover(move[0], move[1]) + NNInputMover(move[2], move[3]))
+        moveInput.append(temp)
+    for k in range(nodes_moves - len(moveInput)):
+        moveInput.append(-1)
+    generatedInput.extend(moveInput)
+    generatedInput.extend(boardInput)
 
     return generatedInput
 
@@ -479,6 +501,14 @@ def map_fen_to_input(fen):
     flat_n_input = [n for square in n_input for n in square]
     flat_n_input.extend([])
     return flat_n_input
+
+
+def NNInputMover(letter, number):
+    rowstoRanks = {7: "1", 6: "2", 5: "3", 4: "4", 3: "5", 2: "6", 1: "7", 0: "8"}
+    rankstoRows = {v: k for k, v in rowstoRanks.items()}
+    colstoFiles = {0: "a", 1: "b", 2: "c", 3: "d", 4: "e", 5: "f", 6: "g", 7: "h"}
+    filestoCols = {v: k for k, v in colstoFiles.items()}
+    return (str(rankstoRows[number]) + str(filestoCols[letter]))
 
 def loadImages():
     pieces = {'wP', 'wR', 'wN', 'wB', 'wK', 'wQ', 'bP', 'bR', 'bN', 'bB', 'bK', 'bQ'}
@@ -583,7 +613,10 @@ def main(genomes, config):
     tempoboard = chess.Board()
     tempoarray = createBoardArray(tempoboard.fen())
     validMoves = []
-    drawGameState(screen, tempoarray, validMoves, games.whiteToMove, sqselected)
+    if MultipleGames:
+        drawGameState(screen, tempoarray, validMoves, games[0].whiteToMove, sqselected)
+    else:
+        drawGameState(screen, tempoarray, validMoves, games.whiteToMove, sqselected)
     clock.tick(MAX_FPS)
     p.display.flip()
     blackAI = blackAIplaying
@@ -597,17 +630,19 @@ def main(genomes, config):
                     if x.starting == True:
                         x.startGame()
                     fen = x.getFen()
-                    fen = fen.split(" ")
-                    if fen[1] == 'w':
+                    tempfen = fen.split(" ")
+                    if tempfen[1] == 'w':
                         if x.ID % 2 == 0:
                             temp = x.getNNmove()
                             x.makeNNmove(temp)
                         else:
                             temp = x.getNNStockFishMove()
+                            print(temp)
                             x.makeMove(temp)
-                    elif fen[1] == 'b':
+                    elif tempfen[1] == 'b':
                         if x.ID % 2 == 0:
                             temp = x.getNNStockFishMove()
+                            print(temp)
                             x.makeMove(temp)
                         else:
                             temp = x.getNNmove()
