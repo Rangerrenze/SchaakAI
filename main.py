@@ -7,6 +7,26 @@ from operator import itemgetter
 import pygame as p
 # import numpy
 import MCTS
+import visualize
+import neat
+import os
+
+def updateSettings():
+
+    global blackAIplaying, whiteAIplaying, IterativeMinimax, MonteCarlo, NormalStockfish, NeuralNetworkMove, NeuralNetworkTraining, loadCheckpoint, checkpointing, runGenerations, NEATactive
+    blackAIplaying = True
+    whiteAIplaying = False
+    IterativeMinimax = False
+    MonteCarlo = False
+    NormalStockfish = False
+    NeuralNetworkMove = False
+    NeuralNetworkTraining = False
+    loadCheckpoint = 0
+    checkpointing = False
+    runGenerations = 300
+    NEATactive = False
+    if NeuralNetworkMove or NeuralNetworkTraining:
+        NEATactive = True
 
 board = chess.Board()
 screenSize = 512
@@ -17,6 +37,7 @@ MAX_FPS = 15
 IMAGES = {}
 path = "openingBook.txt"
 openingbook = []
+generation = 0
 
 with open(path, "r") as file:
     for line in file:
@@ -24,7 +45,7 @@ with open(path, "r") as file:
         openingbook.append(tempLine)
 
 class game:
-    def __init__(self, ID):
+    def __init__(self, ID, stockfishELO):
         self.ID = ID
         self.moveTracker = 0
         self.OGplayer = None
@@ -37,6 +58,9 @@ class game:
         self.stockFishmove = None
         self.selfMove = None
         self.moveCatalog = []
+        self.NNStockFishElo = stockfishELO
+        self.NNStockfishy = stockfish.Stockfish(path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
+        self.NNStockfishy.set_elo_rating(self.NNStockFishElo)
         self.whiteToMove = True
         self.stockfishy = stockfish.Stockfish(
         path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
@@ -45,6 +69,8 @@ class game:
             parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.gameOver = False
         self.whiteWin = True
+        self.NNplaying = False
+        self.whiteNN = False
 
     def startGame(self):
         self.board = board
@@ -87,7 +113,6 @@ class game:
     def updateGameOver(self):
         self.winChecker = self.CheckGameOver()
         self.draw = self.checkDraw()
-        print("test2")
         self.checkWinColor()
         if self.draw or self.winChecker == True:
             self.gameOver = True
@@ -126,6 +151,45 @@ class game:
             print(legalMoves)
             move = input("Another move: ")
             self.verifyMove(move, legalMoves)
+
+    def NNGameOverUpdate(self):
+        gameOver = False
+        self.winChecker = self.CheckGameOver()
+        self.draw = self.checkDraw()
+        if self.draw or self.winChecker == True:
+            boardfen = self.board.fen
+            boardfen = str(boardfen)
+            boardfen = boardfen.split(" ")
+            if boardfen[1] == "b":
+                if self.whiteNN:
+                    index = self.ID -1
+                    ge[index].fitness -= 100
+                    removeBoard(index)
+                else:
+                    index = self.ID - 1
+                    ge[index].fitness += 1000
+                    stockfishELO += 50
+                    removeBoard(index)
+            elif boardfen[1] == "w":
+                if self.whiteNN:
+                    index = self.ID -1
+                    ge[index].fitness += 1000
+                    removeBoard(index)
+                    stockfishELO += 50
+                else:
+                    index = self.ID - 1
+                    ge[index].fitness -= 100
+                    removeBoard(index)
+
+            else:
+                index = self.ID -1
+                ge[index].fitness += 500
+                stockfishELO += 10
+                removeBoard(index)
+
+            self.gameOver = True
+
+
 
     def getRandomMove(self):
         legalMoves = self.getLegalMoves()
@@ -300,6 +364,97 @@ class game:
         else:
             mover = MCTS.getMCTSmove(self.getFen())
         return mover
+    def getMCTSpure(self):
+        fen = self.getFen()
+        mover = MCTS.getMCTSmove(fen)
+        return mover
+
+    def getNNmove(self):
+        input = getInput(self.getFen(), self.getLegalMovesUCI())
+        index = self.ID -1
+        legalmoves = self.getLegalMovesUCI()
+        NNMoveMade = False
+        for i in range(1000):
+            output = nets[index].activate(
+                input
+            )
+
+            if len(str(output)) == 4:
+                ge[index].fitness += 5
+                move = str(getMover(output[0], output[1]) + getMover(output[2], output[3]))
+                if move in legalmoves:
+                    ge[index].fitness += 100
+                    print(1000-i)
+                    NNMoveMade = True
+                    return move
+        if not NNMoveMade:
+            ge[index].fitness -= 10000
+            removeBoard(index)
+
+
+
+
+
+def removeBoard(index):
+    games.pop(index)
+    ge.pop(index)
+    nets.pop(index)
+
+def getInput(fen, allmoves):
+    generatedInput = []
+    moveInput = []
+    boardInput = map_fen_to_input(fen)
+
+    for move in allmoves:
+        temp = returnMover(move[0], move[1]) + returnMover(move[2], move[3])
+        moveInput.append(temp)
+    generatedInput.append(moveInput)
+    generatedInput.append(boardInput)
+    generatedInput.extend([])
+
+    return generatedInput
+
+def map_fen_to_input(fen):
+    chunks = fen.split(" ")
+    grid = chunks[0]
+    rows = grid.split("/")
+
+    n_input = []
+    _square_depth = 9
+
+    for row in rows:
+        for square in row:
+            activations = {
+                'p': (0, 6),
+                'n': (1, 6),
+                'b': (2, 6),
+                'r': (3, 6),
+                'q': (4, 6),
+                'k': (5, 6),
+                'P': (0, 7),
+                'N': (1, 7),
+                'B': (2, 7),
+                'R': (3, 7),
+                'Q': (4, 7),
+                'K': (5, 7),
+            }
+            indices = activations.get(square, False)
+
+            if not indices:
+                for k in range(int(square)):
+                    to_append = [0 for j in range(_square_depth)]
+                    to_append[8] = -1  # Signal this square is empty
+                    n_input.append(to_append)
+            else:
+                to_append = [0 for j in range(_square_depth)]
+                to_append[indices[0]] = 1
+                to_append[indices[1]] = 1
+                to_append[8] = 1  # Signal this square is occupied
+                n_input.append(to_append)
+
+    flat_n_input = [n for square in n_input for n in square]
+    flat_n_input.extend([])
+    return flat_n_input
 
 def loadImages():
     pieces = {'wP', 'wR', 'wN', 'wB', 'wK', 'wQ', 'bP', 'bR', 'bN', 'bB', 'bK', 'bQ'}
@@ -361,16 +516,37 @@ def createBoardArray(fen):
         ttboard.append(tempboard)
     return ttboard
 
-def main():
+
+
+def main(genomes, config):
+    global games, nets, ge, generation, stockfishELO
+    NN = NEATactive
+    whiteAI = True
     MultipleGames = False #System for enabling multiple gamess at a time, IE training AI
-    numGames = 1
+    if NN :
+        if NeuralNetworkTraining:
+            MultipleGames = True
+        else:
+            MultipleGames = False
     games = None
+    stockfishELO = 100
+    idtemp = 1
     if MultipleGames:
         games = []
-        for x in range(numGames):
-            games.append(game(x))
     elif not MultipleGames:
-        games = game(numGames)
+        games = game(1, stockfishELO)
+    ge = []
+    nets = []
+    generation += 1
+    if NN and MultipleGames:
+        for _,g in genomes:
+            net = neat.nn.FeedForwardNetwork.create(g, config)
+            nets.append(net)
+            games.append(game(idtemp, stockfishELO))
+            idtemp += 1
+            g.fitness = 0
+            ge.append(g)
+
     running = True
     p.init()
     screen = p.display.set_mode((WIDHT, HEIGHT))
@@ -383,13 +559,14 @@ def main():
     tempoboard = chess.Board()
     tempoarray = createBoardArray(tempoboard.fen())
     validMoves = []
-    validMoves = None
     drawGameState(screen, tempoarray, validMoves, games.whiteToMove, sqselected)
     clock.tick(MAX_FPS)
     p.display.flip()
-    whiteAI = True
-    blackAI = True
+    blackAI = blackAIplaying
+    whiteAI = whiteAIplaying
+    training = NeuralNetworkTraining
     movesPossible = True
+    NN = True
     while running:
         if MultipleGames:
             for x in games:
@@ -399,12 +576,12 @@ def main():
                     x.showBoard()
                     fen = x.getFen()
                     fen = fen.split(" ")
-                    if fen[1] == 'w' and whiteAI and x.gameOver:
+                    if fen[1] == 'w' and (whiteAI and training == False) and x.gameOver and (x.ID%2 == 0 and training == True):
                         temp = x.findBestMove()
                         print(temp[1], "white move eval")
                         temp = temp[0]
                         x.makeMove(temp)
-                    elif fen[1] == 'b' and blackAI and x.gameOver:
+                    elif fen[1] == 'b' and (blackAI and training == False) and x.gameOver and (x.ID%2 != 0 and training == True):
                         temp = x.findBestMove()
                         print(temp[1], "black move eval")
                         temp = temp[0]
@@ -421,6 +598,7 @@ def main():
             legalMoves = games[0].getLegalMovesUCI()
             whiteToMove = games[0].whiteToMove
             sqselected = []
+            print(games[0].ID)
             drawGameState(screen, arrayBoard, legalMoves, whiteToMove, sqselected)
             clock.tick(MAX_FPS)
             p.display.flip()
@@ -477,33 +655,84 @@ def main():
                         moveMade = True
                     if e.key == p.K_r:
                         numGames = games.ID =+ 1
-                        games = game(numGames)
+                        games = game(numGames, stockfishELO)
 
             if whiteAI and games.whiteToMove and not games.gameOver:
-                print("white Minimax move")
-                Minimax = False
-                mover = games.getMCTSmove()
-                if Minimax:
+                print("White AI move")
+                if IterativeMinimax:
+                    mover = games.findBestMove()
                     print(mover[1], "White move eval")
                     mover = mover[0]
-                games.makeMove(mover)
-                drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
-                clock.tick(MAX_FPS)
-                p.display.flip()
-                moveMade = True
+                    games.makeMove(mover)
+                    drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                    clock.tick(MAX_FPS)
+                    p.display.flip()
+                    moveMade = True
+                elif MonteCarlo:
+                    mover = games.getMCTSmove()
+                    games.makeMove(mover)
+                    drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                    clock.tick(MAX_FPS)
+                    p.display.flip()
+                elif NormalStockfish:
+                    mover = games.getStockFishMove()
+                    games.makeMove(mover)
+                    drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                    clock.tick(MAX_FPS)
+                    p.display.flip()
+                elif NeuralNetworkMove:
+                    mover = games.getNNmove()
+                    games.makeMove(mover)
+                    drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                    clock.tick(MAX_FPS)
+                    p.display.flip()
+                else:
+                    mover = games.findBestMove()
+                    print(mover[1], "White move eval")
+                    mover = mover[0]
+                    games.makeMove(mover)
+                    drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                    clock.tick(MAX_FPS)
+                    p.display.flip()
+                    moveMade = True
             elif blackAI and not games.whiteToMove and not games.gameOver:
-                print("black Minimax move")
-                Minimax = True
-                mover = games.findBestMove()
-                if Minimax == True:
+                print("Black AI move")
+                if IterativeMinimax:
+                    mover = games.findBestMove()
                     print(mover[1], "Black move eval")
                     mover = mover[0]
-                print("mover,", mover)
-                games.makeMove(mover)
-                drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
-                clock.tick(MAX_FPS)
-                p.display.flip()
-                moveMade = True
+                    games.makeMove(mover)
+                    drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                    clock.tick(MAX_FPS)
+                    p.display.flip()
+                    moveMade = True
+                elif MonteCarlo:
+                    mover = games.getMCTSmove()
+                    games.makeMove(mover)
+                    drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                    clock.tick(MAX_FPS)
+                    p.display.flip()
+                elif NormalStockfish:
+                    mover = games.getStockFishMove()
+                    games.makeMove(mover)
+                    drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                    clock.tick(MAX_FPS)
+                    p.display.flip()
+                elif NeuralNetworkMove:
+                    mover = games.getNNmove()
+                    games.makeMove(mover)
+                    drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                    clock.tick(MAX_FPS)
+                    p.display.flip()
+                else:
+                    mover = games.findBestMove()
+                    print(mover[1], "Black move eval")
+                    mover = mover[0]
+                    games.makeMove(mover)
+                    drawGameState(screen, arrayBoard, validmoves, whiteToMove, sqselected)
+                    clock.tick(MAX_FPS)
+                    p.display.flip()
+                    moveMade = True
             if games.gameOver:
                 if games.whiteWin and movesPossible:
                     print("Game Over, white win")
@@ -553,5 +782,53 @@ def getPromotionInput(move):
         move = getPromotionInput(move)
     return move
 
+
+
+def run(config_path):
+    if NEATactive:
+        print("test")
+        config = neat.config.Config(
+            neat.DefaultGenome,
+            neat.DefaultReproduction,
+            neat.DefaultSpeciesSet,
+            neat.DefaultStagnation,
+            config_path
+        )
+
+        if checkpointing:
+            tmpGens = loadCheckpoint - 1
+            tmpname = 'neat-checkpoint-{0}'.format(tmpGens)
+
+            p = neat.checkpoint.Checkpointer.restore_checkpoint(tmpname)
+            generation = p.generation
+        else:
+            p = neat.Population(config)
+
+        p.add_reporter(neat.StdOutReporter(True))
+        p.add_reporter(neat.checkpoint.Checkpointer(20,None))
+        stats = neat.StatisticsReporter()
+        p.add_reporter(stats)
+
+        winner = p.run(main, runGenerations)
+        visualize.plot_stats(stats, ylog=True, view=True, filename="feedforward-fitness.svg")
+        visualize.plot_species(stats, view=True, filename="feedforward-speciation.svg")
+
+        node_names = {-1: 'x', -2: 'dx', -3: 'theta', -4: 'dtheta', 0: 'control'}
+        visualize.draw_net(config, winner, True, node_names=node_names)
+
+        visualize.draw_net(config, winner, view=True, node_names=node_names,
+                           filename="winner-feedforward.gv")
+        visualize.draw_net(config, winner, view=True, node_names=node_names,
+                           filename="winner-feedforward-enabled.gv", show_disabled=False)
+        visualize.draw_net(config, winner, view=True, node_names=node_names,
+                           filename="winner-feedforward-enabled-pruned.gv", show_disabled=False, prune_unused=True)
+    else:
+        main(None, None)
+
+
+
 if __name__ == "__main__":
-    main()
+    updateSettings()
+    local_dir = os.path.dirname(__file__)
+    config_path = os.path.join(local_dir, 'config.txt')
+    run(config_path)
