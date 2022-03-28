@@ -65,9 +65,11 @@ class game:
         self.NNStockfishy = stockfish.Stockfish(path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.NNStockfishy.set_elo_rating(self.NNStockFishElo)
         self.whiteToMove = True
-        self.stockfishy = stockfish.Stockfish(
-        path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
-        self.stockfishy2 = stockfish.Stockfish(
+        if IterativeMinimax:
+            self.stockfishy = stockfish.Stockfish(
+            path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
+        if not NeuralNetworkTraining:
+            self.stockfishy2 = stockfish.Stockfish(
             path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
             parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.gameOver = False
@@ -606,8 +608,6 @@ def main(genomes, config):
             idtemp += 1
         for x in games:
             x.startGame()
-            print(x.ID)
-    running = True
     p.init()
     screen = p.display.set_mode((WIDHT, HEIGHT))
     clock = p.time.Clock()
@@ -629,16 +629,22 @@ def main(genomes, config):
     whiteAI = whiteAIplaying
     training = NeuralNetworkTraining
     movesPossible = True
-    while running:
+    run = True
+    while run:
         if MultipleGames:
             for x in games:
                 if not x.gameOver:
-                    temp = x.getNNmove()
-                    print("nn move, ", temp)
-                    if temp == None:
-                        removeBoard(x)
-                    else:
-                        x.makeMoveNN(temp)
+                    if x.ID %2 == 0:
+                        temp = x.getNNmove()
+                        print("nn move, ", temp)
+                        if temp == None:
+                            removeBoard(x)
+                        else:
+                            x.makeMoveNN(temp)
+                    else: 
+                        temp = x.getNNStockFishMove()
+                        x.makeMove(temp)
+                        print("SF move, ", temp)
                 else:
                     pass
 
@@ -665,6 +671,8 @@ def main(genomes, config):
             drawGameState(screen, arrayBoard, legalMoves, whiteToMove, sqselected)
             clock.tick(MAX_FPS)
             p.display.flip()
+            if len(games) == 0:
+                break
         else:
             games.startGame()
             arrayBoard = createBoardArray(games.getFen())
