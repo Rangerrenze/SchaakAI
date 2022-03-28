@@ -410,23 +410,23 @@ class game:
                     input
                 )
                 output = str(base(int(output[0]), 8))
-            for y in range(4 - len(output)):
-                output = "0" + output
-            print("output", index, output)
-            if len(output) == 4:
-                for ges in ge:
-                    if ges == self.GEtemp:
-                        ges.fitness += 5
-                        break
-                move = str(getMover(output[0], output[1]) + getMover(output[2], output[3]))
-                print(move)
-                if move in legalmoves:
+                for y in range(4 - len(output)):
+                    output = "0" + output
+                print("output", index, output)
+                if len(output) == 4:
                     for ges in ge:
                         if ges == self.GEtemp:
-                            ges.fitness += 100
+                            ges.fitness += 5
                             break
+                    move = str(getMover(output[0], output[1]) + getMover(output[2], output[3]))
+                    print(move)
+                    if move in legalmoves:
+                        for ges in ge:
+                            if ges == self.GEtemp:
+                                ges.fitness += 100
+                                break
 
-                    return move
+                        return move
         if not NNMoveMade:
             for ges in ge:
                 if ges == self.GEtemp:
