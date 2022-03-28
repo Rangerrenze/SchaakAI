@@ -402,6 +402,7 @@ class game:
             output = nets[index].activate(
                 input
             )
+            output = int(output[0])
             print("output", output)
             if len(str(output)) == 4:
                 ge[index].fitness += 5
@@ -600,7 +601,8 @@ def main(genomes, config):
             idtemp += 1
             g.fitness = 0
             ge.append(g)
-    print(nets, ge)
+    for x in games:
+        print(x.ID)
     running = True
     p.init()
     screen = p.display.set_mode((WIDHT, HEIGHT))
@@ -650,7 +652,10 @@ def main(genomes, config):
                     #         x.makeNNmove(temp)
                     temp = x.getNNmove()
                     print("nn move", temp)
-                    x.makeMoveNN(temp)
+                    if temp == None:
+                        removeBoard(x.ID-1)
+                    else:
+                        x.makeMoveNN(temp)
                 else:
                     pass
         if MultipleGames and movesPossible:
