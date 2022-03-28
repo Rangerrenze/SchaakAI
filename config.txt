@@ -6,9 +6,9 @@ reset_on_extinction   = False
 
 [DefaultGenome]
 # node activation options
-activation_default      = tanh
+activation_default      = customsin
 activation_mutate_rate  = 0.0
-activation_options      = tanh
+activation_options      = customsin
 
 # node aggregation options
 aggregation_default     = sum
