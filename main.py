@@ -647,16 +647,21 @@ def main(genomes, config):
             for e in p.event.get():
                 if e.type == p.QUIT:
                     running = False
-            if not len(games) > 0 or games[0].board != None:
-                fen = games[0].getFen()
+            print("games", games)
+            if not len(games) == 0:
+                if not games[0].board == None:
+                    fen = games[0].getFen()
 
             else:
                 fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
             arrayBoard = createBoardArray(fen)
             legalMoves = None
-            whiteToMove = games[0].whiteToMove
+            whiteToMove = True
+            if not len(games) == 0:
+                whiteToMove = games[0].whiteToMove
+                print(games[0].ID)
             sqselected = []
-            print(games[0].ID)
+
             drawGameState(screen, arrayBoard, legalMoves, whiteToMove, sqselected)
             clock.tick(MAX_FPS)
             p.display.flip()
