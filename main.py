@@ -600,12 +600,11 @@ def main(genomes, config):
         for _,g in genomes:
             net = neat.nn.FeedForwardNetwork.create(g, config)
             nets.append(net)
-            idtemp += 1
             g.fitness = 0
             ge.append(g)
             games.append(game(idtemp, stockfishELO, net, g))
-    for x in games:
-        print(x.ID)
+            idtemp += 1
+
     running = True
     p.init()
     screen = p.display.set_mode((WIDHT, HEIGHT))
@@ -634,6 +633,7 @@ def main(genomes, config):
                 if not x.gameOver:
                     if x.starting == True:
                         x.startGame()
+                        x.showBoard()
                     fen = x.getFen()
                     tempfen = fen.split(" ")
                     # if tempfen[1] == 'w':
