@@ -179,35 +179,39 @@ class game:
             boardfen = boardfen.split(" ")
             if boardfen[1] == "b":
                 if self.whiteNN:
-                    index = self.ID -1
-                    ge[index].fitness -= 100
-                    removeBoard(index)
+                    for ges in ge:
+                        if ges == self.GEtemp:
+                            ges.fitness -= 1000
+                    removeBoard(self)
                 else:
-                    index = self.ID - 1
-                    ge[index].fitness += 1000
+                    for ges in ge:
+                        if ges == self.GEtemp:
+                            ges.fitness += 10000
                     tempELO = stockfishELO
                     stockfishELO += 50
                     f = open("NNwins.txt", "a")
                     writingString = "NN win" + str(tempELO) + str(self.moveCatalog)
                     f.write(writingString)
                     f.close()
+                    removeBoard(self)
             elif boardfen[1] == "w":
                 if self.whiteNN:
-                    index = self.ID -1
-                    ge[index].fitness += 1000
-                    removeBoard(index)
+                    for ges in ge:
+                        if ges == self.GEtemp:
+                            ges.fitness += 10000
                     tempELO = stockfishELO
                     stockfishELO += 50
                     f = open("NNwins.txt", "a")
                     writingString = "NN win" + str(tempELO) + str(self.moveCatalog)
                     f.write(writingString)
                     f.close()
-
+                    removeBoard(self)
 
                 else:
-                    index = self.ID - 1
-                    ge[index].fitness -= 100
-                    removeBoard(index)
+                    for ges in ge:
+                        if ges == self.GEtemp:
+                            ges.fitness -= 1000
+                    removeBoard(self)
 
             else:
                 index = self.ID -1
@@ -431,7 +435,10 @@ class game:
         if not NNMoveMade:
             for ges in ge:
                 if ges == self.GEtemp:
-                    ges.fitness -= 10000
+                    if self.moveTracker < 2:
+                        ges.fitness -= 10000
+                    else:
+                        ges.fitness -= 50
                     break
 
 
@@ -635,16 +642,29 @@ def main(genomes, config):
             for x in games:
                 if not x.gameOver:
                     if x.ID %2 == 0:
-                        temp = x.getNNmove()
-                        print("nn move, ", temp)
-                        if temp == None:
-                            removeBoard(x)
+                        if x.whiteToMove:
+                            temp = x.getNNmove()
+                            print("nn move, ", temp)
+                            if temp == None:
+                                removeBoard(x)
+                            else:
+                                x.makeMoveNN(temp)
                         else:
-                            x.makeMoveNN(temp)
-                    else: 
-                        temp = x.getNNStockFishMove()
-                        x.makeMove(temp)
-                        print("SF move, ", temp)
+                            temp = x.getNNStockFishMove()
+                            x.makeMove(temp)
+                            print("SF move, ", temp)
+                    else:
+                        if x.whiteToMove:
+                            temp = x.getNNStockFishMove()
+                            x.makeMove(temp)
+                            print("SF move, ", temp)
+                        else:
+                            temp = x.getNNmove()
+                            print("nn move, ", temp)
+                            if temp == None:
+                                removeBoard(x)
+                            else:
+                                x.makeMoveNN(temp)
                 else:
                     pass
 
