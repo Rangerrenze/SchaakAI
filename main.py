@@ -62,13 +62,13 @@ class game:
         self.selfMove = None
         self.moveCatalog = []
         self.NNStockFishElo = stockfishELO
-        self.NNStockfishy = stockfish.Stockfish(path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
+        self.NNStockfishy = stockfish.Stockfish(path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.NNStockfishy.set_elo_rating(self.NNStockFishElo)
         self.whiteToMove = True
         self.stockfishy = stockfish.Stockfish(
-        path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
+        path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.stockfishy2 = stockfish.Stockfish(
-            path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
+            path=r"C:\Users\Bob Steeg\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
             parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.gameOver = False
         self.whiteWin = True
@@ -406,23 +406,27 @@ class game:
         output = []
         for net in nets:
             if net == self.NETStemp:
+                output = net.activate(
+                    input
+                )
                 output = str(base(int(output[0]), 8))
-                for y in range(4 - len(output)):
-                    output = "0" + output
-                break
-            else:
-                output = []
-                print("help")
-        print(output)
-        output = int(output[0])
-        print("output", output)
-        if len(str(output)) == 4:
-            ge[index].fitness += 5
-            move = str(getMover(output[0], output[1]) + getMover(output[2], output[3]))
-            if move in legalmoves:
-                ge[index].fitness += 100
-                NNMoveMade = True
-                return move
+            for y in range(4 - len(output)):
+                output = "0" + output
+            print("output", index, output)
+            if len(output) == 4:
+                for ges in ge:
+                    if ges == self.GEtemp:
+                        ges.fitness += 5
+                        break
+                move = str(getMover(output[0], output[1]) + getMover(output[2], output[3]))
+                print(move)
+                if move in legalmoves:
+                    for ges in ge:
+                        if ges == self.GEtemp:
+                            ges.fitness += 100
+                            break
+
+                    return move
         if not NNMoveMade:
             for ges in ge:
                 if ges == self.GEtemp:
@@ -860,7 +864,7 @@ def getMover(r, c):
     rowstoRanks = {v: k for k, v in rankstoRows.items()}
     filestoCols = {"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7}
     colstoFiles = {v: k for k, v in filestoCols.items()}
-    return colstoFiles[c] + rowstoRanks[r]
+    return colstoFiles[int(c)] + rowstoRanks[int(r)]
 
 def returnMover(letter, number):
     rowstoRanks = {7: "1", 6: "2", 5: "3", 4: "4", 3: "5", 2: "6", 1: "7", 0: "8"}
@@ -905,7 +909,7 @@ def run(config_path):
             neat.DefaultStagnation,
             config_path
         )
-
+        config.genome_config.add_activation("customsin", customsin_activation)
         if checkpointing:
             tmpGens = loadCheckpoint - 1
             tmpname = 'neat-checkpoint-{0}'.format(tmpGens)
