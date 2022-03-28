@@ -604,7 +604,9 @@ def main(genomes, config):
             ge.append(g)
             games.append(game(idtemp, stockfishELO, net, g))
             idtemp += 1
-
+        for x in games:
+            x.startGame()
+            print(x.ID)
     running = True
     p.init()
     screen = p.display.set_mode((WIDHT, HEIGHT))
@@ -631,28 +633,6 @@ def main(genomes, config):
         if MultipleGames:
             for x in games:
                 if not x.gameOver:
-                    if x.starting == True:
-                        x.startGame()
-                        x.showBoard()
-                    fen = x.getFen()
-                    tempfen = fen.split(" ")
-                    # if tempfen[1] == 'w':
-                    #     if x.ID % 2 == 0:
-                    #         temp = x.getNNmove()
-                    #         print("nn move", temp)
-                    #         x.makeNNmove(temp)
-                    #     else:
-                    #         temp = x.getNNStockFishMove()
-                    #         print(temp)
-                    #         x.makeMove(temp)
-                    # elif tempfen[1] == 'b':
-                    #     if x.ID % 2 == 0:
-                    #         temp = x.getNNStockFishMove()
-                    #         x.makeMove(temp)
-                    #     else:
-                    #         temp = x.getNNmove()
-                    #         print("nn move", temp)
-                    #         x.makeNNmove(temp)
                     temp = x.getNNmove()
                     print("nn move, ", temp)
                     if temp == None:
@@ -661,14 +641,13 @@ def main(genomes, config):
                         x.makeMoveNN(temp)
                 else:
                     pass
+
+
         if MultipleGames and movesPossible:
             for e in p.event.get():
                 if e.type == p.QUIT:
                     running = False
-            print("games, ", games)
-            for x in games:
-                x.showBoard()
-            if len(games) > 0 or games[0].board != None:
+            if not len(games) > 0 or games[0].board != None:
                 fen = games[0].getFen()
 
             else:
