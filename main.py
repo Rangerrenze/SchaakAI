@@ -406,8 +406,6 @@ class game:
         index = self.ID -1
         legalmoves = self.getLegalMovesUCI()
         NNMoveMade = False
-        print("ID working", self.ID)
-        print("len NETS, ", len(nets))
         output = []
         for net in nets:
             if net == self.NETStemp:
@@ -417,14 +415,12 @@ class game:
                 output = str(base(int(output[0]), 8))
                 for y in range(4 - len(output)):
                     output = "0" + output
-                print("output", index, output)
                 if len(output) == 4:
                     for ges in ge:
                         if ges == self.GEtemp:
                             ges.fitness += 5
                             break
                     move = str(getMover(output[0], output[1]) + getMover(output[2], output[3]))
-                    print(move)
                     if move in legalmoves:
                         for ges in ge:
                             if ges == self.GEtemp:
@@ -669,10 +665,11 @@ def main(genomes, config):
                     #         else:
                     #             x.makeMoveNN(temp)
                     temp = x.getNNmove()
-                    print("nn move, ", temp)
+
                     if temp == None:
                         removeBoard(x)
                     else:
+                        print("nn move, ", temp)
                         x.makeMoveNN(temp)
                 else:
                     pass
@@ -682,7 +679,6 @@ def main(genomes, config):
             for e in p.event.get():
                 if e.type == p.QUIT:
                     running = False
-            print("games", games)
             if not len(games) == 0:
                 if not games[0].board == None:
                     fen = games[0].getFen()
