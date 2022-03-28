@@ -401,8 +401,7 @@ class game:
         legalmoves = self.getLegalMovesUCI()
         NNMoveMade = False
         print("ID working", self.ID)
-        print(nets)
-        print(len(nets))
+        print("len NETS, ", len(nets))
         output = []
         for net in nets:
             if net == self.NETStemp:
@@ -442,20 +441,6 @@ def removeBoard(index):
     ge.remove(index.GEtemp)
     nets.remove(index.NETStemp)
     games.remove(index)
-
-def getInput(fen, allmoves):
-    generatedInput = []
-    moveInput = []
-    boardInput = map_fen_to_input(fen)
-
-    for move in allmoves:
-        temp = returnMover(move[0], move[1]) + returnMover(move[2], move[3])
-        moveInput.append(temp)
-    generatedInput.append(moveInput)
-    generatedInput.append(boardInput)
-    generatedInput.extend([])
-
-    return generatedInput
 
 def getInput(fen, allmoves):
     generatedInput = []
@@ -669,7 +654,7 @@ def main(genomes, config):
                     #         print("nn move", temp)
                     #         x.makeNNmove(temp)
                     temp = x.getNNmove()
-                    print("nn move", temp)
+                    print("nn move, ", temp)
                     if temp == None:
                         removeBoard(x)
                     else:
@@ -680,8 +665,12 @@ def main(genomes, config):
             for e in p.event.get():
                 if e.type == p.QUIT:
                     running = False
+            print("games, ", games)
+            for x in games:
+                x.showBoard()
             if len(games) > 0 or games[0].board != None:
                 fen = games[0].getFen()
+
             else:
                 fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
             arrayBoard = createBoardArray(fen)
