@@ -46,7 +46,7 @@ with open(path, "r") as file:
         openingbook.append(tempLine)
 
 class game:
-    def __init__(self, ID, stockfishELO):
+    def __init__(self, ID, stockfishELO, net= None, ge= None):
         self.ID = ID
         self.moveTracker = 0
         self.OGplayer = None
@@ -55,18 +55,20 @@ class game:
         self.miniMaxOGgoing = True
         self.minimaxGameOver = False
         self.minimxDraw = False
+        self.GEtemp = ge
+        self.NETStemp = net
         self.board = None
         self.stockFishmove = None
         self.selfMove = None
         self.moveCatalog = []
         self.NNStockFishElo = stockfishELO
-        self.NNStockfishy = stockfish.Stockfish(path=r"C:\Users\bartm\OneDrive\Documents\stockfish_14.1_win_x64_avx2\stockfish_14.1_win_x64_avx2.exe", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
+        self.NNStockfishy = stockfish.Stockfish(path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.NNStockfishy.set_elo_rating(self.NNStockFishElo)
         self.whiteToMove = True
         self.stockfishy = stockfish.Stockfish(
-        path=r"C:\Users\bartm\OneDrive\Documents\stockfish_14.1_win_x64_avx2\stockfish_14.1_win_x64_avx2.exe", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
+        path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=2, parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.stockfishy2 = stockfish.Stockfish(
-            path=r"C:\Users\bartm\OneDrive\Documents\stockfish_14.1_win_x64_avx2\stockfish_14.1_win_x64_avx2.exe", depth=18,
+            path=r"C:\Users\Renze Koper\Documents\stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2", depth=18,
             parameters={"Threads": 4, "Minimum Thinking Time": 30})
         self.gameOver = False
         self.whiteWin = True
@@ -398,36 +400,44 @@ class game:
         index = self.ID -1
         legalmoves = self.getLegalMovesUCI()
         NNMoveMade = False
-        for i in range(10):
-            output = nets[index].activate(
-                input
-            )
-            # output = int(output[0])
-            output = str(base(int(output[0]), 8))
-            for y in range(4 - len(output)):
-                output = "0"+output
-            print("output", index, output)
-            if len(output) == 4:
-                ge[index].fitness += 5
-                move = str(getMover(output[0], output[1]) + getMover(output[2], output[3]))
-                print(move)
-                if move in legalmoves:
-                    ge[index].fitness += 100
-                    print(1000-i)
-                    NNMoveMade = True
-                    return move
+        print("ID working", self.ID)
+        print(nets)
+        print(len(nets))
+        output = []
+        for net in nets:
+            if net == self.NETStemp:
+                output = str(base(int(output[0]), 8))
+                for y in range(4 - len(output)):
+                    output = "0" + output
+                break
+            else:
+                output = []
+                print("help")
+        print(output)
+        output = int(output[0])
+        print("output", output)
+        if len(str(output)) == 4:
+            ge[index].fitness += 5
+            move = str(getMover(output[0], output[1]) + getMover(output[2], output[3]))
+            if move in legalmoves:
+                ge[index].fitness += 100
+                NNMoveMade = True
+                return move
         if not NNMoveMade:
-            ge[index].fitness -= 10000
-            removeBoard(index)
+            for ges in ge:
+                if ges == self.GEtemp:
+                    ges.fitness -= 10000
+                    break
+
 
 
 
 
 
 def removeBoard(index):
-    games.pop(index)
-    ge.pop(index)
-    nets.pop(index)
+    ge.remove(index.GEtemp)
+    nets.remove(index.NETStemp)
+    games.remove(index)
 
 def getInput(fen, allmoves):
     generatedInput = []
@@ -601,10 +611,10 @@ def main(genomes, config):
         for _,g in genomes:
             net = neat.nn.FeedForwardNetwork.create(g, config)
             nets.append(net)
-            games.append(game(idtemp, stockfishELO))
             idtemp += 1
             g.fitness = 0
             ge.append(g)
+            games.append(game(idtemp, stockfishELO, net, g))
     for x in games:
         print(x.ID)
     running = True
@@ -657,7 +667,7 @@ def main(genomes, config):
                     temp = x.getNNmove()
                     print("nn move", temp)
                     if temp == None:
-                        removeBoard(x.ID-1)
+                        removeBoard(x)
                     else:
                         x.makeMoveNN(temp)
                 else:
@@ -666,9 +676,12 @@ def main(genomes, config):
             for e in p.event.get():
                 if e.type == p.QUIT:
                     running = False
-            fen = games[0].getFen()
+            if len(games) > 0 or games[0].board != None:
+                fen = games[0].getFen()
+            else:
+                fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
             arrayBoard = createBoardArray(fen)
-            legalMoves = games[0].getLegalMovesUCI()
+            legalMoves = None
             whiteToMove = games[0].whiteToMove
             sqselected = []
             print(games[0].ID)
@@ -847,7 +860,7 @@ def getMover(r, c):
     rowstoRanks = {v: k for k, v in rankstoRows.items()}
     filestoCols = {"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7}
     colstoFiles = {v: k for k, v in filestoCols.items()}
-    return colstoFiles[int(c)] + rowstoRanks[int(r)]
+    return colstoFiles[c] + rowstoRanks[r]
 
 def returnMover(letter, number):
     rowstoRanks = {7: "1", 6: "2", 5: "3", 4: "4", 3: "5", 2: "6", 1: "7", 0: "8"}
@@ -868,6 +881,19 @@ def getPromotionInput(move):
     return move
 
 
+def customsin_activation(x):
+    return 2047.5 * math.sin(x) + 2047.5
+
+
+def base(n, radix, maxlen=None):
+    r = []
+    while n:
+        n, p = divmod(n, radix)
+        r.append('%d' % p)
+        if maxlen and len(r) > maxlen:
+            break
+    r.reverse()
+    return ''.join(r)
 
 def run(config_path):
     if NEATactive:
@@ -879,7 +905,6 @@ def run(config_path):
             neat.DefaultStagnation,
             config_path
         )
-        config.genome_config.add_activation("customsin", customsin_activation)
 
         if checkpointing:
             tmpGens = loadCheckpoint - 1
@@ -911,18 +936,6 @@ def run(config_path):
     else:
         main(None, None)
 
-def customsin_activation(x):
-    return 2047.5*math.sin(x)+2047.5
-
-def base(n, radix, maxlen=None):
-    r = []
-    while n:
-        n,p = divmod(n, radix)
-        r.append('%d' % p)
-        if maxlen and len(r) > maxlen:
-            break
-    r.reverse()
-    return ''.join(r)
 
 
 if __name__ == "__main__":
