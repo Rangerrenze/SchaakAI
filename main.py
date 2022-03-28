@@ -398,11 +398,11 @@ class game:
         index = self.ID -1
         legalmoves = self.getLegalMovesUCI()
         NNMoveMade = False
-        for i in range(1000):
+        for i in range(10):
             output = nets[index].activate(
                 input
             )
-            print("running")
+            print("output", output)
             if len(str(output)) == 4:
                 ge[index].fitness += 5
                 move = str(getMover(output[0], output[1]) + getMover(output[2], output[3]))
@@ -600,7 +600,7 @@ def main(genomes, config):
             idtemp += 1
             g.fitness = 0
             ge.append(g)
-
+    print(nets, ge)
     running = True
     p.init()
     screen = p.display.set_mode((WIDHT, HEIGHT))
@@ -631,22 +631,26 @@ def main(genomes, config):
                         x.startGame()
                     fen = x.getFen()
                     tempfen = fen.split(" ")
-                    if tempfen[1] == 'w':
-                        if x.ID % 2 == 0:
-                            temp = x.getNNmove()
-                            x.makeNNmove(temp)
-                        else:
-                            temp = x.getNNStockFishMove()
-                            print(temp)
-                            x.makeMove(temp)
-                    elif tempfen[1] == 'b':
-                        if x.ID % 2 == 0:
-                            temp = x.getNNStockFishMove()
-                            print(temp)
-                            x.makeMove(temp)
-                        else:
-                            temp = x.getNNmove()
-                            x.makeNNmove(temp)
+                    # if tempfen[1] == 'w':
+                    #     if x.ID % 2 == 0:
+                    #         temp = x.getNNmove()
+                    #         print("nn move", temp)
+                    #         x.makeNNmove(temp)
+                    #     else:
+                    #         temp = x.getNNStockFishMove()
+                    #         print(temp)
+                    #         x.makeMove(temp)
+                    # elif tempfen[1] == 'b':
+                    #     if x.ID % 2 == 0:
+                    #         temp = x.getNNStockFishMove()
+                    #         x.makeMove(temp)
+                    #     else:
+                    #         temp = x.getNNmove()
+                    #         print("nn move", temp)
+                    #         x.makeNNmove(temp)
+                    temp = x.getNNmove()
+                    print("nn move", temp)
+                    x.makeMoveNN(temp)
                 else:
                     pass
         if MultipleGames and movesPossible:
