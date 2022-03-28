@@ -641,30 +641,39 @@ def main(genomes, config):
         if MultipleGames:
             for x in games:
                 if not x.gameOver:
-                    if x.ID %2 == 0:
-                        if x.whiteToMove:
-                            temp = x.getNNmove()
-                            print("nn move, ", temp)
-                            if temp == None:
-                                removeBoard(x)
-                            else:
-                                x.makeMoveNN(temp)
-                        else:
-                            temp = x.getNNStockFishMove()
-                            x.makeMove(temp)
-                            print("SF move, ", temp)
+                    # fen = x.getFen()
+                    # tempfen = fen.split(" ")
+                    # mover = tempfen[1]
+                    # if x.ID %2 == 0:
+                    #     if mover == "w":
+                    #         temp = x.getNNmove()
+                    #         print("nn move, ", temp)
+                    #         if temp == None:
+                    #             removeBoard(x)
+                    #         else:
+                    #             x.makeMoveNN(temp)
+                    #     else:
+                    #         temp = x.getNNStockFishMove()
+                    #         x.makeMove(temp)
+                    #         print("SF move, ", temp)
+                    # else:
+                    #     if mover == "w":
+                    #         temp = x.getNNStockFishMove()
+                    #         x.makeMove(temp)
+                    #         print("SF move, ", temp)
+                    #     else:
+                    #         temp = x.getNNmove()
+                    #         print("nn move, ", temp)
+                    #         if temp == None:
+                    #             removeBoard(x)
+                    #         else:
+                    #             x.makeMoveNN(temp)
+                    temp = x.getNNmove()
+                    print("nn move, ", temp)
+                    if temp == None:
+                        removeBoard(x)
                     else:
-                        if x.whiteToMove:
-                            temp = x.getNNStockFishMove()
-                            x.makeMove(temp)
-                            print("SF move, ", temp)
-                        else:
-                            temp = x.getNNmove()
-                            print("nn move, ", temp)
-                            if temp == None:
-                                removeBoard(x)
-                            else:
-                                x.makeMoveNN(temp)
+                        x.makeMoveNN(temp)
                 else:
                     pass
 
