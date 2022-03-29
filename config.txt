@@ -34,7 +34,7 @@ conn_delete_prob        = 0.5
 
 # connection enable options
 enabled_default         = True
-enabled_mutate_rate     = 0.1
+enabled_mutate_rate     = 0.01
 
 feed_forward            = True
 initial_connection      = full_nodirect
@@ -44,7 +44,7 @@ node_add_prob           = 0.7
 node_delete_prob        = 0.7
 
 # network parameters
-num_hidden              = 20
+num_hidden              = 10
 num_inputs              = 678
 num_outputs             = 1
 
@@ -66,18 +66,14 @@ weight_mutate_power     = 0.5
 weight_mutate_rate      = 0.8
 weight_replace_rate     = 0.1
 
-# stucture options
-single_structural_mutation = True
-structural_mutation_surer = True
-
 [DefaultSpeciesSet]
 compatibility_threshold = 3.0
 
 [DefaultStagnation]
 species_fitness_func = max
-max_stagnation       = 10
+max_stagnation       = 5
 species_elitism      = 0
 
 [DefaultReproduction]
-elitism            = 1
-survival_threshold = 0.4
+elitism            = 0
+survival_threshold = 0.2
